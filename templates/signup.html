@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} Sign Up</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: #eef4f0;
+            color: #14201d;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .auth {
+            width: min(520px, 100%);
+            padding: 28px;
+            border: 1px solid #d6e1dc;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 18px 48px rgba(22, 48, 39, 0.12);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+        .mark {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: #1f7a4d;
+            color: white;
+            font-weight: 800;
+        }
+        h1 { margin: 0; font-size: 25px; }
+        p { color: #64716d; line-height: 1.5; }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .full { grid-column: 1 / -1; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #64716d;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #c7d5cf;
+            border-radius: 8px;
+            font: inherit;
+        }
+        button {
+            padding: 11px 14px;
+            border: 0;
+            border-radius: 8px;
+            background: #1f7a4d;
+            color: white;
+            cursor: pointer;
+            font-weight: 800;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+        .error { background: #ffe9e9; color: #b83b3b; }
+        .notice { background: #e8f5ef; color: #1f7a4d; }
+        a { color: #1f7a4d; font-weight: 700; text-decoration: none; }
+        @media (max-width: 560px) {
+            form { grid-template-columns: 1fr; }
+            .full { grid-column: auto; }
+        }
+    </style>
+</head>
+<body>
+    <main class="auth">
+        <div class="brand">
+            <div class="mark">NA</div>
+            <div>
+                <h1>Create farmer account</h1>
+                <p style="margin: 3px 0 0;">Admin approval is required before login.</p>
+            </div>
+        </div>
+        {% if error %}
+            <div class="message error">{{ error }}</div>
+        {% endif %}
+        {% if notice %}
+            <div class="message notice">{{ notice }}</div>
+        {% endif %}
+        <form method="post">
+            <div class="full">
+                <label for="name">Full name or farm name</label>
+                <input id="name" name="name" required>
+            </div>
+            <div>
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" required>
+            </div>
+            <div>
+                <label for="phone">Phone</label>
+                <input id="phone" name="phone" type="tel">
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" minlength="6" required>
+            </div>
+            <div>
+                <label for="confirm_password">Confirm password</label>
+                <input id="confirm_password" name="confirm_password" type="password" minlength="6" required>
+            </div>
+            <button class="full" type="submit">Submit account for approval</button>
+        </form>
+        <p>Already registered? <a href="{{ url_for('login') }}">Login</a></p>
+    </main>
+</body>
+</html>

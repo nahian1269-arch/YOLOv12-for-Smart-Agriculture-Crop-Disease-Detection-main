@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} Farm Intelligence</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        :root {
+            --ink: #14201d;
+            --muted: #64716d;
+            --line: #d9e3df;
+            --panel: #ffffff;
+            --page: #f4f7f4;
+            --green: #1f7a4d;
+            --teal: #0c8191;
+            --amber: #c7811f;
+            --red: #b83b3b;
+            --blue: #315eaa;
+            --shadow: 0 16px 40px rgba(26, 46, 41, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--page);
+            font-family: Arial, Helvetica, sans-serif;
+            letter-spacing: 0;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 260px minmax(0, 1fr);
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            padding: 22px;
+            background: #10211d;
+            color: #f7fbf8;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            background: #2fa36a;
+            color: white;
+            font-weight: 800;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .brand p {
+            margin: 3px 0 0;
+            color: #a9bbb5;
+            font-size: 12px;
+        }
+
+        .nav {
+            display: grid;
+            gap: 8px;
+        }
+
+        .nav a {
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #dce8e3;
+            font-size: 14px;
+        }
+
+        .nav a:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-status {
+            margin-top: 28px;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: #dce8e3;
+            font-size: 13px;
+        }
+
+        .sidebar-status strong {
+            display: block;
+            margin-bottom: 6px;
+            color: white;
+        }
+
+        .main {
+            min-width: 0;
+            padding: 24px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .topbar h2 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .topbar p {
+            margin: 6px 0 0;
+            color: var(--muted);
+        }
+
+        .status-pill {
+            padding: 9px 12px;
+            border-radius: 8px;
+            background: #e8f5ef;
+            color: var(--green);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .kpi-grid {
+            grid-template-columns: repeat(5, minmax(130px, 1fr));
+        }
+
+        .two-col {
+            grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        }
+
+        .three-col {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .sensor-grid {
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        }
+
+        .panel,
+        .metric,
+        .sensor-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .panel {
+            padding: 18px;
+        }
+
+        .metric {
+            padding: 16px;
+        }
+
+        .metric span,
+        .panel-kicker,
+        .sensor-card span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 26px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .panel-header h3 {
+            margin: 4px 0 0;
+            font-size: 20px;
+        }
+
+        .panel-header p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        section {
+            scroll-margin-top: 22px;
+            margin-bottom: 18px;
+        }
+
+        .score-row {
+            display: grid;
+            gap: 12px;
+        }
+
+        .score-label {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .bar-track {
+            height: 10px;
+            border-radius: 8px;
+            background: #e8eeeb;
+            overflow: hidden;
+        }
+
+        .bar {
+            height: 100%;
+            border-radius: 8px;
+            background: var(--green);
+        }
+
+        .bar.alt {
+            background: var(--teal);
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            padding: 7px 9px;
+            border-radius: 8px;
+            background: #eef5f1;
+            color: #245542;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .chip.blue {
+            background: #eaf0fb;
+            color: var(--blue);
+        }
+
+        .chip.amber {
+            background: #fbf2e3;
+            color: var(--amber);
+        }
+
+        .sensor-card {
+            padding: 14px;
+            min-height: 118px;
+        }
+
+        .sensor-card strong {
+            display: block;
+            margin: 12px 0 8px;
+            font-size: 24px;
+        }
+
+        .sensor-card small {
+            color: var(--muted);
+        }
+
+        .sensor-card.alert {
+            border-color: #efc5c5;
+            background: #fff7f7;
+        }
+
+        .sensor-card.watch {
+            border-color: #efd7aa;
+            background: #fffaf0;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            background: #f7faf8;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .status.accepted,
+        .status.stable {
+            background: #e8f5ef;
+            color: var(--green);
+        }
+
+        .status.pending,
+        .status.watch {
+            background: #fbf2e3;
+            color: var(--amber);
+        }
+
+        .status.alert {
+            background: #ffe9e9;
+            color: var(--red);
+        }
+
+        form {
+            margin: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #c9d6d1;
+            border-radius: 8px;
+            background: white;
+            color: var(--ink);
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 82px;
+            resize: vertical;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        button,
+        .button {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: var(--green);
+            color: white;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        button.secondary {
+            background: #ecf2ef;
+            color: #245542;
+        }
+
+        button.danger {
+            background: var(--red);
+        }
+
+        .alert-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .alert-list li {
+            padding: 10px;
+            border-left: 4px solid var(--amber);
+            border-radius: 8px;
+            background: #fffaf0;
+        }
+
+        .map {
+            position: relative;
+            height: 280px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(12, 129, 145, 0.10) 1px, transparent 1px),
+                linear-gradient(rgba(12, 129, 145, 0.10) 1px, transparent 1px),
+                #e8f3f1;
+            background-size: 42px 42px;
+        }
+
+        .map::before {
+            content: "";
+            position: absolute;
+            inset: 24px 36px;
+            border-radius: 48% 52% 46% 54%;
+            background: #c9ddd6;
+            transform: rotate(-8deg);
+        }
+
+        .map-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--green);
+            border: 2px solid white;
+            box-shadow: 0 0 0 5px rgba(31, 122, 77, 0.18);
+        }
+
+        .map-point.pending {
+            background: var(--amber);
+            box-shadow: 0 0 0 5px rgba(199, 129, 31, 0.18);
+        }
+
+        .camera-frame {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid var(--line);
+            background: #e8eeeb;
+        }
+
+        .output-image {
+            width: 100%;
+            max-height: 460px;
+            object-fit: contain;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #0f1715;
+        }
+
+        .timeline {
+            display: grid;
+            gap: 10px;
+        }
+
+        .timeline-item {
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fbfdfc;
+        }
+
+        .timeline-item strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .error {
+            padding: 10px;
+            border-radius: 8px;
+            background: #ffe9e9;
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .summary {
+            margin: 12px 0;
+            padding: 12px;
+            border-left: 4px solid var(--teal);
+            border-radius: 8px;
+            background: #eef7f7;
+        }
+
+        .summary p {
+            margin: 6px 0 0;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        @media (max-width: 1100px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                height: auto;
+            }
+
+            .nav {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .kpi-grid,
+            .two-col,
+            .three-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .main {
+                padding: 14px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .form-grid,
+            .nav {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">NA</div>
+                <div>
+                    <h1>{{ app_name }}</h1>
+                    <p>Farm intelligence system</p>
+                </div>
+            </div>
+            <nav class="nav">
+                <a href="#overview">Overview</a>
+                <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+                <a href="#setup">Project setup</a>
+                <a href="#sensors">Sensors</a>
+                <a href="#automation">Automation</a>
+                <a href="#disease">Disease AI</a>
+                <a href="#weather">Weather AI</a>
+                <a href="#hardware">Hardware</a>
+            </nav>
+            <div class="sidebar-status">
+                <strong>Database</strong>
+                {% if supabase_enabled %}
+                    Supabase REST is configured.
+                {% else %}
+                    Local JSON fallback is active. Add Supabase environment keys to sync cloud tables.
+                {% endif %}
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="topbar">
+                <div>
+                    <h2>Welcome, {{ user.name }}</h2>
+                    <p>{{ user.email }} · Hydroponic, aquaponic, hybrid, and traditional farm operations.</p>
+                </div>
+                <div class="button-row">
+                    <div class="status-pill">Project: {{ current_project.name }}</div>
+                    <form method="post" action="{{ url_for('logout') }}">
+                        <button class="secondary" type="submit">Logout</button>
+                    </form>
+                </div>
+            </div>
+
+            <section id="overview">
+                <div class="grid kpi-grid">
+                    <div class="metric">
+                        <span>My projects</span>
+                        <strong>{{ user_metrics.project_count }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Current area</span>
+                        <strong>{{ user_metrics.area }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Vertical floors</span>
+                        <strong>{{ user_metrics.floors }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Disease scans</span>
+                        <strong>{{ user_metrics.disease_count }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Account</span>
+                        <strong>{{ user_metrics.status }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">AI site analysis</span>
+                            <h3>{{ project_analysis.recommendation }}</h3>
+                            <p>{{ project_analysis.reason }}</p>
+                        </div>
+                    </div>
+                    {% if project_analysis.agent_report %}
+                        <div class="summary">
+                            <strong>{{ project_analysis.agent_source }}</strong>
+                            <p>{{ project_analysis.agent_report }}</p>
+                        </div>
+                    {% endif %}
+                    <div class="score-row">
+                        <div>
+                            <div class="score-label">
+                                <span>Vertical farming fit</span>
+                                <strong>{{ project_analysis.vertical_score }}%</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar" style="width: {{ project_analysis.vertical_score }}%;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="score-label">
+                                <span>Traditional farming fit</span>
+                                <strong>{{ project_analysis.traditional_score }}%</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar alt" style="width: {{ project_analysis.traditional_score }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <h4>Suggested plants</h4>
+                    <div class="chip-row">
+                        {% for plant in project_analysis.plants %}
+                            <span class="chip">{{ plant }}</span>
+                        {% endfor %}
+                    </div>
+                    <h4>Vertical system options</h4>
+                    <div class="chip-row">
+                        {% for system in project_analysis.systems %}
+                            <span class="chip blue">{{ system }}</span>
+                        {% endfor %}
+                    </div>
+                    <h4>Mini fish for aquaponic and hybrid modules</h4>
+                    <div class="chip-row">
+                        {% for fish in project_analysis.fish %}
+                            <span class="chip amber">{{ fish }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">AI recommendations</span>
+                            <h3>Next best actions</h3>
+                        </div>
+                    </div>
+                    <ul class="alert-list">
+                        {% for item in recommendations %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <section id="setup" class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span class="panel-kicker">User setup</span>
+                        <h3>Create a project module</h3>
+                        <p>Maximum vertical depth is 4 floors. Your browser will capture the project location automatically.</p>
+                    </div>
+                </div>
+                {% if setup_result %}
+                    <div class="summary">
+                        <strong>{{ setup_result.agent_source }}</strong>
+                        <p>{{ setup_result.agent_report }}</p>
+                    </div>
+                {% endif %}
+                {% if error %}
+                    <p class="error">{{ error }}</p>
+                {% endif %}
+                <form method="post" id="project-form">
+                    <input type="hidden" name="form_type" value="project_setup">
+                    <div class="form-grid">
+                        <div>
+                            <label for="project_name">Project name</label>
+                            <input id="project_name" name="project_name" required>
+                        </div>
+                        <div>
+                            <label for="area">Area or land size sq ft</label>
+                            <input id="area" name="area" type="number" min="1" step="any" required>
+                        </div>
+                        <div>
+                            <label for="floors">Vertical floors</label>
+                            <select id="floors" name="floors">
+                                {% for floor in [1, 2, 3, 4] %}
+                                    <option value="{{ floor }}" {% if current_project.floors == floor %}selected{% endif %}>{{ floor }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="goal">Farm goal</label>
+                            <select id="goal" name="goal">
+                                <option>hybrid vertical farming</option>
+                                <option>hydroponic vertical farming</option>
+                                <option>aquaponic vertical farming</option>
+                                <option>aeroponic vertical farming</option>
+                                <option>traditional farming</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="lat">Latitude</label>
+                            <input id="lat" name="lat" type="number" step="any" readonly required>
+                        </div>
+                        <div>
+                            <label for="lng">Longitude</label>
+                            <input id="lng" name="lng" type="number" step="any" readonly required>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button type="button" class="secondary" id="detect-location">Detect location</button>
+                        <button type="submit">Analyze and save project</button>
+                    </div>
+                    <p id="location-status" style="color: var(--muted);">Waiting for location permission.</p>
+                </form>
+            </section>
+
+            <section id="sensors" class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span class="panel-kicker">ESP-WROOM-32 telemetry</span>
+                        <h3>Live sensor dashboard</h3>
+                        <p>Latest packet: {{ latest_sensor.timestamp }}</p>
+                    </div>
+                    <span class="status stable">API /api/sensors</span>
+                </div>
+                <div class="grid sensor-grid">
+                    {% for card in sensor_cards %}
+                        <div class="sensor-card {{ card.status }}">
+                            <span>{{ card.label }}</span>
+                            <strong>{{ card.value }} {{ card.unit }}</strong>
+                            <small>Ideal: {{ card.ideal }}</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section id="automation" class="grid two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Automation control</span>
+                            <h3>Pumps, relay, camera, and blue UV lights</h3>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Device</th>
+                                    <th>Mode</th>
+                                    <th>AI action</th>
+                                    <th>Manual control</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, mode in controls.items() %}
+                                    <tr>
+                                        <td>{{ name.replace('_', ' ').title() }}</td>
+                                        <td><span class="status stable">{{ mode }}</span></td>
+                                        <td>{{ automation.get(name, 'hold') }}</td>
+                                        <td>
+                                            <form method="post">
+                                                <input type="hidden" name="form_type" value="control_update">
+                                                <input type="hidden" name="control_name" value="{{ name }}">
+                                                <select name="control_value">
+                                                    <option value="auto">auto</option>
+                                                    <option value="on">on</option>
+                                                    <option value="off">off</option>
+                                                    <option value="active">active</option>
+                                                </select>
+                                                <div class="button-row">
+                                                    <button class="secondary" type="submit">Set</button>
+                                                </div>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Alerts</span>
+                            <h3>Sensor-triggered signals</h3>
+                        </div>
+                    </div>
+                    <ul class="alert-list">
+                        {% for alert in alerts %}
+                            <li>{{ alert }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </section>
+
+            <section id="disease" class="grid two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">YOLO disease detection</span>
+                            <h3>ESP camera and manual image check</h3>
+                            <p>Images are analyzed by the integrated YOLO model and stored in disease history.</p>
+                        </div>
+                    </div>
+                    {% if error %}
+                        <p class="error">{{ error }}</p>
+                    {% endif %}
+                    <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="form_type" value="disease">
+                        <label for="file">Plant image</label>
+                        <input id="file" type="file" name="file" accept="image/*">
+                        <div class="button-row">
+                            <button type="submit">Analyze disease</button>
+                        </div>
+                    </form>
+
+                    {% if disease_result %}
+                        <h4>Detection output</h4>
+                        <img src="{{ disease_result.image }}" alt="Disease detection output" class="output-image">
+                        <div class="chip-row" style="margin-top: 12px;">
+                            {% for disease, count in disease_result.summary.items() %}
+                                <span class="chip amber">{{ disease }}: {{ count }}</span>
+                            {% endfor %}
+                        </div>
+                        <ul class="alert-list" style="margin-top: 12px;">
+                            {% for action in disease_result.recommendations %}
+                                <li>{{ action }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Camera module</span>
+                            <h3>Latest farm image</h3>
+                        </div>
+                    </div>
+                    <img src="{{ sample_camera_image }}" alt="ESP camera sample" class="camera-frame">
+                    <h4>Disease history</h4>
+                    <div class="timeline">
+                        {% if disease_history %}
+                            {% for item in disease_history %}
+                                <div class="timeline-item">
+                                    <strong>{{ item.timestamp }}</strong>
+                                    {% for disease, count in item.summary.items() %}
+                                        <span class="chip">{{ disease }}: {{ count }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="timeline-item">No disease records stored yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section id="weather" class="panel">
+                <div class="panel-header">
+                    <div>
+                        <span class="panel-kicker">Transformer weather model</span>
+                        <h3>Automatic 30-day forecast</h3>
+                        <p>The trained .keras model runs automatically and predicts weather parameters without manual input.</p>
+                    </div>
+                </div>
+                {% if weather_error %}
+                    <p class="error">{{ weather_error }}</p>
+                {% endif %}
+                {% if weather_forecast %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    {% for field_name, label, unit in weather_features %}
+                                        <th>{{ label }} ({{ unit }})</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for forecast_day in weather_forecast %}
+                                    <tr>
+                                        <td>Day {{ forecast_day.day }}</td>
+                                        {% for item in forecast_day.measurements %}
+                                            <td>{{ item.value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section id="hardware" class="grid two-col">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Hardware stack</span>
+                            <h3>Supported modules</h3>
+                        </div>
+                    </div>
+                    <div class="chip-row">
+                        {% for component in hardware_components %}
+                            <span class="chip">{{ component }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">ESP32 payload</span>
+                            <h3>Sensor post format</h3>
+                        </div>
+                    </div>
+                    <pre>{
+  "project_id": "{{ current_project.id }}",
+  "dht11_temp": 27.4,
+  "dht11_humidity": 68,
+  "dht7_temp": 23.1,
+  "mq5": 148,
+  "mq7": 21,
+  "mq135": 412,
+  "lux": 9200,
+  "rain_drop": 0,
+  "soil_moisture": 42,
+  "water_level": 74,
+  "motion": 0
+}</pre>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script>
+        const latitudeInput = document.getElementById("lat");
+        const longitudeInput = document.getElementById("lng");
+        const locationStatus = document.getElementById("location-status");
+        const detectLocationButton = document.getElementById("detect-location");
+
+        function detectLocation() {
+            if (!navigator.geolocation) {
+                locationStatus.textContent = "Geolocation is not supported by this browser.";
+                return;
+            }
+
+            locationStatus.textContent = "Detecting your farm location...";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    latitudeInput.value = position.coords.latitude.toFixed(6);
+                    longitudeInput.value = position.coords.longitude.toFixed(6);
+                    locationStatus.textContent = `Location captured with about ${Math.round(position.coords.accuracy)} m accuracy.`;
+                },
+                (error) => {
+                    locationStatus.textContent = `Location permission is required: ${error.message}`;
+                },
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+            );
+        }
+
+        detectLocationButton.addEventListener("click", detectLocation);
+        window.addEventListener("DOMContentLoaded", detectLocation);
+    </script>
+</body>
+</html>

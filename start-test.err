@@ -1,0 +1,5 @@
+INFO:__main__:YOLO model loaded successfully
+INFO:__main__:Model class names: {0: 'Blight', 1: 'Brown spot', 2: 'False Smut', 3: 'Healthy', 4: 'Leaf Smut', 5: 'Rice blast', 6: 'Stem Rot', 7: 'Tungro'}
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
