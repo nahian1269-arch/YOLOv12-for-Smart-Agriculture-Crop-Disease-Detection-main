@@ -3,16 +3,18 @@ import json
 import logging
 import os
 import pickle
+import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from functools import wraps
 
 import cv2
 import keras
 import numpy as np
 import requests
 import supervision as sv
-from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
 from keras import layers
 from keras.saving import register_keras_serializable
 from ultralytics import YOLO
@@ -25,16 +27,41 @@ os.environ.setdefault("MPLCONFIGDIR", os.path.join(os.getcwd(), ".matplotlib"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def load_env_file(path=".env"):
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_env_file()
+
 APP_NAME = "NuroAgro"
 UPLOAD_FOLDER = "static/uploads/"
 DATA_FOLDER = "data"
 LOCAL_DB_PATH = os.path.join(DATA_FOLDER, "nuroagro_state.json")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("VITE_SUPABASE_URL", "")).rstrip("/")
+SUPABASE_PUBLISHABLE_KEY = os.getenv(
+    "SUPABASE_PUBLISHABLE_KEY",
+    os.getenv("VITE_SUPABASE_PUBLISHABLE_KEY", ""),
+)
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_API_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_PUBLISHABLE_KEY
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_PROJECT_MODEL = os.getenv("OPENAI_PROJECT_MODEL", "gpt-5.5")
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+WEATHER_REFRESH_MINUTES = 15
+SEASONAL_ANALYSIS_DAYS = 75
+SENSOR_ANALYSIS_HOURS = 2
+SENSOR_ANALYSIS_MODEL = "NuroAgro Sensor Intelligence v1"
 
 WEATHER_FEATURES = [
     ("max_temp", "Max Temperature", "C"),
@@ -109,12 +136,51 @@ DISEASE_ACTIONS = {
     "Healthy": "No disease action needed. Keep monitoring environmental stress.",
 }
 
+PLANT_HEALTHY_CLASSES = {
+    "Apple leaf",
+    "Bell_pepper leaf",
+    "Blueberry leaf",
+    "Cherry leaf",
+    "Peach leaf",
+    "Potato leaf",
+    "Raspberry leaf",
+    "Soyabean leaf",
+    "Strawberry leaf",
+    "Tomato leaf",
+    "grape leaf",
+}
+
+PLANT_DISEASE_GUIDANCE = {
+    "scab": "Remove infected leaves and fruit debris, improve airflow, and use an approved scab fungicide.",
+    "rust": "Remove heavily infected leaves, avoid overhead watering, and apply an approved rust treatment.",
+    "leaf spot": "Remove infected foliage, keep leaves dry, improve spacing, and use a crop-appropriate fungicide.",
+    "bacterial spot": "Avoid handling wet plants, sanitize tools, remove infected tissue, and use an approved copper treatment.",
+    "early blight": "Remove lower infected leaves, mulch soil, improve airflow, and apply an approved blight fungicide.",
+    "late blight": "Isolate affected plants immediately, remove infected tissue, avoid leaf wetness, and apply an approved late-blight treatment.",
+    "blight": "Remove affected foliage, reduce leaf wetness, improve airflow, and apply a crop-appropriate blight treatment.",
+    "powdery mildew": "Improve ventilation, reduce humidity around leaves, remove infected foliage, and use an approved mildew treatment.",
+    "mosaic virus": "Isolate and remove infected plants, disinfect tools, and control aphid or whitefly vectors.",
+    "yellow virus": "Remove infected plants and control whiteflies to reduce virus transmission.",
+    "mold": "Reduce humidity, improve airflow, remove infected leaves, and avoid overhead irrigation.",
+    "spider mites": "Inspect leaf undersides, isolate affected plants, wash foliage, and apply insecticidal soap or a suitable miticide.",
+    "black rot": "Remove infected leaves and fruit, sanitize tools, improve airflow, and apply an approved black-rot treatment.",
+}
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "nuroagro-local-dev-secret")
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
 os.makedirs(os.environ["MPLCONFIGDIR"], exist_ok=True)
+STATE_LOCK = threading.RLock()
+
+
+def state_transaction(view_function):
+    @wraps(view_function)
+    def wrapped(*args, **kwargs):
+        with STATE_LOCK:
+            return view_function(*args, **kwargs)
+    return wrapped
 
 
 @register_keras_serializable()
@@ -157,12 +223,20 @@ class TransformerBlock(layers.Layer):
 
 
 try:
-    disease_model = YOLO("best.pt")
-    logger.info("YOLO model loaded successfully")
-    logger.info("Model class names: %s", disease_model.names)
+    rice_disease_model = YOLO("best.pt")
+    logger.info("Rice disease YOLO model loaded successfully")
+    logger.info("Rice model class names: %s", rice_disease_model.names)
 except Exception as exc:
-    disease_model = None
-    logger.exception("Failed to load YOLO model: %s", exc)
+    rice_disease_model = None
+    logger.exception("Failed to load rice disease YOLO model: %s", exc)
+
+try:
+    plant_disease_model = YOLO("plant.pt")
+    logger.info("Multi-plant disease YOLO model loaded successfully")
+    logger.info("Plant model class names: %s", plant_disease_model.names)
+except Exception as exc:
+    plant_disease_model = None
+    logger.exception("Failed to load multi-plant disease YOLO model: %s", exc)
 
 try:
     with open(WEATHER_SCALER_PATH, "rb") as scaler_file:
@@ -318,70 +392,82 @@ def default_state():
         },
         "disease_history": [],
         "activities": [],
+        "weather_snapshots": [],
+        "weather_predictions": [],
+        "seasonal_analyses": [],
+        "sensor_analyses": [],
     }
 
 
 def load_state():
-    if not os.path.exists(LOCAL_DB_PATH):
-        state = default_state()
-        save_state(state)
+    with STATE_LOCK:
+        if not os.path.exists(LOCAL_DB_PATH):
+            state = default_state()
+            save_state(state)
+            return state
+
+        with open(LOCAL_DB_PATH, "r", encoding="utf-8") as state_file:
+            state = json.load(state_file)
+
+        defaults = default_state()
+        changed = False
+        for key, value in defaults.items():
+            if key not in state:
+                state[key] = value
+                changed = True
+
+        default_admin = defaults["admins"][0]
+        for admin in state.get("admins", []):
+            if "access_key_hash" not in admin:
+                admin["access_key_hash"] = default_admin["access_key_hash"]
+                changed = True
+
+        for user in state.get("users", []):
+            if "password_hash" not in user:
+                user["password_hash"] = generate_password_hash("farmer123")
+                changed = True
+            if "last_login" not in user:
+                user["last_login"] = None
+                changed = True
+
+        if changed:
+            save_state(state)
         return state
-
-    with open(LOCAL_DB_PATH, "r", encoding="utf-8") as state_file:
-        state = json.load(state_file)
-
-    defaults = default_state()
-    changed = False
-    for key, value in defaults.items():
-        if key not in state:
-            state[key] = value
-            changed = True
-
-    default_admin = defaults["admins"][0]
-    for admin in state.get("admins", []):
-        if "access_key_hash" not in admin:
-            admin["access_key_hash"] = default_admin["access_key_hash"]
-            changed = True
-
-    for user in state.get("users", []):
-        if "password_hash" not in user:
-            user["password_hash"] = generate_password_hash("farmer123")
-            changed = True
-        if "last_login" not in user:
-            user["last_login"] = None
-            changed = True
-
-    if changed:
-        save_state(state)
-    return state
 
 
 def save_state(state):
-    with open(LOCAL_DB_PATH, "w", encoding="utf-8") as state_file:
-        json.dump(state, state_file, indent=2)
+    with STATE_LOCK:
+        temp_path = f"{LOCAL_DB_PATH}.tmp"
+        with open(temp_path, "w", encoding="utf-8") as state_file:
+            json.dump(state, state_file, indent=2)
+        os.replace(temp_path, LOCAL_DB_PATH)
 
 
 def supabase_insert(table_name, row):
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    if not SUPABASE_URL or not SUPABASE_API_KEY:
         return False
 
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/{table_name}",
             headers={
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
-                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                "apikey": SUPABASE_API_KEY,
+                "Authorization": f"Bearer {SUPABASE_API_KEY}",
                 "Content-Type": "application/json",
                 "Prefer": "return=minimal",
             },
             json=row,
-            timeout=5,
+            timeout=8,
         )
         response.raise_for_status()
         return True
     except Exception as exc:
         logger.warning("Supabase insert failed for %s: %s", table_name, exc)
         return False
+
+
+def supabase_configured():
+    return bool(SUPABASE_URL and SUPABASE_API_KEY)
 
 
 def latest_sensor(state):
@@ -467,6 +553,159 @@ def evaluate_automation(reading):
     return actions, alerts
 
 
+SENSOR_ANALYSIS_KEYS = [
+    "dht11_temp",
+    "dht11_humidity",
+    "dht7_temp",
+    "mq5",
+    "mq7",
+    "mq135",
+    "lux",
+    "rain_drop",
+    "soil_moisture",
+    "water_level",
+    "motion",
+]
+
+
+def sensor_window_readings(state, project_id, hours=SENSOR_ANALYSIS_HOURS):
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    readings = []
+    for reading in state.get("sensor_history", []):
+        if project_id and reading.get("project_id") != project_id:
+            continue
+        timestamp = parse_iso_datetime(reading.get("timestamp"))
+        if timestamp and timestamp.astimezone(timezone.utc) >= cutoff:
+            readings.append(reading)
+    return readings
+
+
+def numeric_average(readings, key):
+    values = []
+    for reading in readings:
+        try:
+            values.append(float(reading.get(key, 0) or 0))
+        except (TypeError, ValueError):
+            continue
+    return round(sum(values) / len(values), 2) if values else 0
+
+
+def sensor_trend(readings, key):
+    if len(readings) < 2:
+        return 0
+    midpoint = max(1, len(readings) // 2)
+    early = numeric_average(readings[:midpoint], key)
+    late = numeric_average(readings[midpoint:], key)
+    return round(late - early, 2)
+
+
+def analyze_sensor_window(state, project_id):
+    readings = sensor_window_readings(state, project_id)
+    if not readings:
+        return None
+
+    averages = {key: numeric_average(readings, key) for key in SENSOR_ANALYSIS_KEYS}
+    trends = {key: sensor_trend(readings, key) for key in SENSOR_ANALYSIS_KEYS}
+    anomalies = []
+    feedback = []
+    score = 100
+
+    checks = [
+        ("soil_moisture", averages["soil_moisture"] < 35, 18, "Soil moisture stayed below 35%. Irrigation is required."),
+        ("water_level", averages["water_level"] < 30, 18, "Water reserve stayed below 30%. Refill the tank."),
+        ("lux_low", averages["lux"] < 800, 10, "Average light intensity is low. Increase grow-light output."),
+        ("lux_high", averages["lux"] > 18000, 8, "Average light intensity is high. Reduce UV output or add shade."),
+        ("mq5", averages["mq5"] > 350, 12, "MQ-5 gas level is elevated. Inspect gas sources and ventilate."),
+        ("mq7", averages["mq7"] > 80, 15, "Carbon monoxide trend is unsafe. Ventilate and inspect immediately."),
+        ("mq135", averages["mq135"] > 600, 12, "Air-quality level is poor. Increase ventilation."),
+        ("temperature", averages["dht11_temp"] < 18 or averages["dht11_temp"] > 34, 10, "Air temperature is outside the preferred farm range."),
+        ("humidity", averages["dht11_humidity"] < 45 or averages["dht11_humidity"] > 85, 8, "Humidity is outside the preferred range."),
+        ("motion", averages["motion"] > 0.2, 5, "Repeated motion was detected during the analysis window."),
+    ]
+    for code, triggered, penalty, message in checks:
+        if triggered:
+            anomalies.append(code)
+            feedback.append(message)
+            score -= penalty
+
+    if trends["soil_moisture"] < -8:
+        anomalies.append("soil_drying_fast")
+        feedback.append("Soil moisture is falling quickly. Check pump timing and irrigation flow.")
+        score -= 8
+    if trends["water_level"] < -12:
+        anomalies.append("water_drop_fast")
+        feedback.append("Water reserve is dropping quickly. Inspect for leakage or high pump usage.")
+        score -= 8
+    if trends["mq135"] > 120:
+        anomalies.append("air_quality_worsening")
+        feedback.append("Air quality is worsening across the two-hour window.")
+        score -= 8
+
+    score = max(0, min(100, score))
+    risk_level = "critical" if score < 45 else "watch" if score < 75 else "stable"
+    if not feedback:
+        feedback.append("Two-hour sensor patterns are stable. Continue automatic monitoring.")
+
+    generated_at = datetime.now(timezone.utc)
+    record = {
+        "id": f"SAN-{uuid.uuid4().hex[:10].upper()}",
+        "project_id": project_id,
+        "generated_at": generated_at.isoformat(),
+        "next_analysis_at": (generated_at + timedelta(hours=SENSOR_ANALYSIS_HOURS)).isoformat(),
+        "window_start": readings[0].get("timestamp"),
+        "window_end": readings[-1].get("timestamp"),
+        "sample_count": len(readings),
+        "health_score": score,
+        "risk_level": risk_level,
+        "averages": averages,
+        "trends": trends,
+        "anomalies": anomalies,
+        "feedback": feedback,
+        "model_name": SENSOR_ANALYSIS_MODEL,
+    }
+    state.setdefault("sensor_analyses", []).append(record)
+    supabase_insert("sensor_analyses", record)
+    return record
+
+
+def get_or_create_sensor_analysis(state, project_id):
+    analyses = [
+        item for item in state.get("sensor_analyses", [])
+        if item.get("project_id") == project_id
+    ]
+    if analyses:
+        latest = analyses[-1]
+        next_analysis_at = parse_iso_datetime(latest.get("next_analysis_at"))
+        if next_analysis_at and datetime.now(timezone.utc) < next_analysis_at.astimezone(timezone.utc):
+            return latest
+    return analyze_sensor_window(state, project_id)
+
+
+def sensor_analysis_scheduler():
+    while True:
+        try:
+            with STATE_LOCK:
+                state = load_state()
+                project_ids = {
+                    reading.get("project_id")
+                    for reading in state.get("sensor_history", [])
+                    if reading.get("project_id")
+                }
+                project_ids.update(
+                    project.get("id")
+                    for project in state.get("projects", [])
+                    if project.get("id")
+                )
+                analysis_count = len(state.get("sensor_analyses", []))
+                for project_id in project_ids:
+                    get_or_create_sensor_analysis(state, project_id)
+                if len(state.get("sensor_analyses", [])) != analysis_count:
+                    save_state(state)
+        except Exception as exc:
+            logger.exception("Two-hour sensor analysis scheduler failed: %s", exc)
+        time.sleep(60)
+
+
 def sensor_cards(reading):
     cards = []
     for sensor in SENSOR_DEFINITIONS:
@@ -493,6 +732,238 @@ def sensor_cards(reading):
     return cards
 
 
+WEATHER_CODE_LABELS = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Rime fog",
+    51: "Light drizzle",
+    53: "Drizzle",
+    55: "Heavy drizzle",
+    61: "Light rain",
+    63: "Rain",
+    65: "Heavy rain",
+    71: "Light snow",
+    73: "Snow",
+    75: "Heavy snow",
+    80: "Rain showers",
+    81: "Rain showers",
+    82: "Heavy showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with hail",
+    99: "Severe thunderstorm",
+}
+
+
+def parse_iso_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def project_coordinates(user, project):
+    lat = float(project.get("lat", 0) or 0)
+    lng = float(project.get("lng", 0) or 0)
+    if lat or lng:
+        return lat, lng, "Project location"
+
+    location = user.get("location", {})
+    lat = float(location.get("lat", 0) or 0)
+    lng = float(location.get("lng", 0) or 0)
+    if lat or lng:
+        return lat, lng, location.get("label", "Account location")
+
+    return 23.8103, 90.4125, "Dhaka fallback"
+
+
+def recent_weather_bundle(state, user_id, project_id):
+    snapshots = [
+        item for item in state.get("weather_snapshots", [])
+        if item.get("user_id") == user_id and item.get("project_id") == project_id
+    ]
+    if not snapshots:
+        return None
+
+    latest = snapshots[-1]
+    observed_at = parse_iso_datetime(latest.get("observed_at"))
+    if observed_at and datetime.now(timezone.utc) - observed_at.astimezone(timezone.utc) < timedelta(minutes=WEATHER_REFRESH_MINUTES):
+        return latest.get("bundle")
+    return None
+
+
+def latest_weather_bundle(state, user_id, project_id):
+    snapshots = [
+        item for item in state.get("weather_snapshots", [])
+        if item.get("user_id") == user_id and item.get("project_id") == project_id
+    ]
+    return snapshots[-1].get("bundle") if snapshots else None
+
+
+def aggregate_hourly_by_date(hourly):
+    date_values = {}
+    times = hourly.get("time", [])
+    humidities = hourly.get("relative_humidity_2m", [])
+    pressures = hourly.get("surface_pressure", [])
+    for index, timestamp in enumerate(times):
+        date_key = str(timestamp)[:10]
+        bucket = date_values.setdefault(date_key, {"humidity": [], "pressure": []})
+        if index < len(humidities) and humidities[index] is not None:
+            bucket["humidity"].append(float(humidities[index]))
+        if index < len(pressures) and pressures[index] is not None:
+            bucket["pressure"].append(float(pressures[index]))
+
+    return {
+        date_key: {
+            "humidity": round(sum(values["humidity"]) / len(values["humidity"]), 2) if values["humidity"] else 0,
+            "pressure": round(sum(values["pressure"]) / len(values["pressure"]), 2) if values["pressure"] else 1013,
+        }
+        for date_key, values in date_values.items()
+    }
+
+
+def fetch_location_weather(latitude, longitude):
+    response = requests.get(
+        OPEN_METEO_FORECAST_URL,
+        params={
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": ",".join([
+                "temperature_2m",
+                "relative_humidity_2m",
+                "apparent_temperature",
+                "precipitation",
+                "rain",
+                "weather_code",
+                "cloud_cover",
+                "surface_pressure",
+                "wind_speed_10m",
+            ]),
+            "daily": ",".join([
+                "weather_code",
+                "temperature_2m_max",
+                "temperature_2m_min",
+                "temperature_2m_mean",
+                "precipitation_sum",
+                "sunrise",
+                "sunset",
+            ]),
+            "hourly": "relative_humidity_2m,surface_pressure",
+            "past_days": 59,
+            "forecast_days": 7,
+            "timezone": "auto",
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    current = payload.get("current", {})
+    daily = payload.get("daily", {})
+    hourly_by_date = aggregate_hourly_by_date(payload.get("hourly", {}))
+
+    daily_rows = []
+    daily_times = daily.get("time", [])
+    for index, date_value in enumerate(daily_times):
+        weather_code = int(daily.get("weather_code", [0] * len(daily_times))[index] or 0)
+        hourly_values = hourly_by_date.get(date_value, {})
+        daily_rows.append({
+            "date": date_value,
+            "condition": WEATHER_CODE_LABELS.get(weather_code, "Variable weather"),
+            "weather_code": weather_code,
+            "max_temp": float(daily.get("temperature_2m_max", [0] * len(daily_times))[index] or 0),
+            "min_temp": float(daily.get("temperature_2m_min", [0] * len(daily_times))[index] or 0),
+            "avg_temp": float(daily.get("temperature_2m_mean", [0] * len(daily_times))[index] or 0),
+            "humidity": float(hourly_values.get("humidity", current.get("relative_humidity_2m", 0)) or 0),
+            "pressure": float(hourly_values.get("pressure", current.get("surface_pressure", 1013)) or 1013),
+            "rainfall": float(daily.get("precipitation_sum", [0] * len(daily_times))[index] or 0),
+            "sunrise": daily.get("sunrise", [""] * len(daily_times))[index],
+            "sunset": daily.get("sunset", [""] * len(daily_times))[index],
+        })
+
+    current_code = int(current.get("weather_code", 0) or 0)
+    return {
+        "latitude": float(payload.get("latitude", latitude)),
+        "longitude": float(payload.get("longitude", longitude)),
+        "timezone": payload.get("timezone", "auto"),
+        "timezone_abbreviation": payload.get("timezone_abbreviation", ""),
+        "observed_at": now_iso(),
+        "current": {
+            "time": current.get("time", now_iso()),
+            "temperature": current.get("temperature_2m"),
+            "humidity": current.get("relative_humidity_2m"),
+            "apparent_temperature": current.get("apparent_temperature"),
+            "precipitation": current.get("precipitation"),
+            "rain": current.get("rain"),
+            "weather_code": current_code,
+            "condition": WEATHER_CODE_LABELS.get(current_code, "Variable weather"),
+            "cloud_cover": current.get("cloud_cover"),
+            "pressure": current.get("surface_pressure"),
+            "wind_speed": current.get("wind_speed_10m"),
+        },
+        "daily": daily_rows,
+        "forecast_daily": daily_rows[-7:],
+    }
+
+
+def store_daily_weather(state, user, project, bundle):
+    weather_date = str(bundle.get("current", {}).get("time", ""))[:10] or datetime.now().date().isoformat()
+    project_id = project.get("id", "")
+    existing = next(
+        (
+            item for item in state.get("weather_snapshots", [])
+            if item.get("user_id") == user["id"]
+            and item.get("project_id") == project_id
+            and item.get("weather_date") == weather_date
+        ),
+        None,
+    )
+
+    if existing:
+        existing["observed_at"] = now_iso()
+        existing["bundle"] = bundle
+        return existing
+
+    today_daily = next((row for row in bundle.get("daily", []) if row.get("date") == weather_date), {})
+    record = {
+        "id": f"WTH-{uuid.uuid4().hex[:10].upper()}",
+        "user_id": user["id"],
+        "project_id": project_id,
+        "observed_at": now_iso(),
+        "weather_date": weather_date,
+        "latitude": bundle["latitude"],
+        "longitude": bundle["longitude"],
+        "timezone": bundle.get("timezone", ""),
+        "current_weather": bundle.get("current", {}),
+        "daily_weather": today_daily,
+        "bundle": bundle,
+    }
+    state.setdefault("weather_snapshots", []).append(record)
+    supabase_insert("weather_snapshots", {key: value for key, value in record.items() if key != "bundle"})
+    return record
+
+
+def get_location_weather(state, user, project):
+    project_id = project.get("id", "")
+    cached = recent_weather_bundle(state, user["id"], project_id)
+    if cached:
+        return cached, None
+
+    latitude, longitude, location_label = project_coordinates(user, project)
+    try:
+        bundle = fetch_location_weather(latitude, longitude)
+        bundle["location_label"] = location_label
+        store_daily_weather(state, user, project, bundle)
+        return bundle, None
+    except Exception as exc:
+        logger.warning("Realtime weather request failed: %s", exc)
+        previous = latest_weather_bundle(state, user["id"], project_id)
+        return previous, "Realtime weather service is temporarily unavailable."
+
+
 def build_automatic_weather_input():
     if weather_scaler is not None and hasattr(weather_scaler, "data_min_") and hasattr(weather_scaler, "data_max_"):
         seed_values = (weather_scaler.data_min_ + weather_scaler.data_max_) / 2
@@ -501,11 +972,32 @@ def build_automatic_weather_input():
     return np.tile(np.array(seed_values, dtype=np.float32), (WEATHER_INPUT_STEPS, 1))
 
 
-def predict_weather():
+def weather_history_input(bundle):
+    daily_rows = bundle.get("daily", []) if bundle else []
+    historical_rows = daily_rows[:-6] if len(daily_rows) > 6 else daily_rows
+    values = [
+        [
+            row.get("max_temp", 0),
+            row.get("min_temp", 0),
+            row.get("avg_temp", 0),
+            row.get("humidity", 0),
+            row.get("pressure", 1013),
+            row.get("rainfall", 0),
+        ]
+        for row in historical_rows[-WEATHER_INPUT_STEPS:]
+    ]
+    if not values:
+        return build_automatic_weather_input()
+    while len(values) < WEATHER_INPUT_STEPS:
+        values.insert(0, values[0])
+    return np.array(values[-WEATHER_INPUT_STEPS:], dtype=np.float32)
+
+
+def predict_weather(bundle=None):
     if weather_model is None or weather_scaler is None:
         raise RuntimeError("Weather prediction model or scaler is not available")
 
-    weather_input = build_automatic_weather_input()
+    weather_input = weather_history_input(bundle)
     scaled_input = weather_scaler.transform(weather_input).reshape(1, WEATHER_INPUT_STEPS, len(WEATHER_FEATURES))
     prediction = weather_model.predict(scaled_input, verbose=0)
     forecast_scaled = prediction.reshape(WEATHER_FORECAST_DAYS, len(WEATHER_FEATURES))
@@ -527,6 +1019,45 @@ def predict_weather():
     ]
 
 
+def store_next_day_prediction(state, user, project, forecast, bundle):
+    if not forecast:
+        return None
+
+    project_id = project.get("id", "")
+    local_date = str(bundle.get("current", {}).get("time", datetime.now().date().isoformat()))[:10]
+    target_date = (datetime.fromisoformat(local_date) + timedelta(days=1)).date().isoformat()
+    existing = next(
+        (
+            item for item in state.get("weather_predictions", [])
+            if item.get("user_id") == user["id"]
+            and item.get("project_id") == project_id
+            and str(item.get("target_at", ""))[:10] == target_date
+        ),
+        None,
+    )
+    if existing:
+        return existing
+
+    prediction_values = {
+        WEATHER_FEATURES[index][0]: measurement["value"]
+        for index, measurement in enumerate(forecast[0]["measurements"])
+    }
+    record = {
+        "id": f"WPR-{uuid.uuid4().hex[:10].upper()}",
+        "user_id": user["id"],
+        "project_id": project_id,
+        "predicted_at": now_iso(),
+        "target_at": f"{target_date}T00:00:00",
+        "latitude": bundle["latitude"],
+        "longitude": bundle["longitude"],
+        "model_name": os.path.basename(WEATHER_MODEL_PATH),
+        "prediction": prediction_values,
+    }
+    state.setdefault("weather_predictions", []).append(record)
+    supabase_insert("weather_predictions", record)
+    return record
+
+
 def weather_average(forecast, label):
     values = []
     for day in forecast[:7]:
@@ -534,6 +1065,163 @@ def weather_average(forecast, label):
             if measurement["label"] == label:
                 values.append(float(measurement["value"]))
     return round(sum(values) / len(values), 2) if values else 0
+
+
+def seasonal_weather_summary(state, user_id, project_id, bundle, next_day_prediction):
+    snapshots = [
+        item for item in state.get("weather_snapshots", [])
+        if item.get("user_id") == user_id and item.get("project_id") == project_id
+    ][-75:]
+    daily_rows = [item.get("daily_weather", {}) for item in snapshots if item.get("daily_weather")]
+    if not daily_rows and bundle:
+        daily_rows = bundle.get("daily", [])[-7:]
+
+    def average(key, fallback=0):
+        values = [float(row.get(key, fallback) or fallback) for row in daily_rows]
+        return round(sum(values) / len(values), 2) if values else fallback
+
+    return {
+        "sample_days": len(daily_rows),
+        "average_max_temperature_c": average("max_temp"),
+        "average_min_temperature_c": average("min_temp"),
+        "average_temperature_c": average("avg_temp"),
+        "average_humidity_percent": average("humidity"),
+        "average_pressure_hpa": average("pressure", 1013),
+        "average_rainfall_mm": average("rainfall"),
+        "next_day_prediction": next_day_prediction.get("prediction", {}) if next_day_prediction else {},
+    }
+
+
+def local_seasonal_recommendation(summary, project):
+    avg_temp = float(summary.get("average_temperature_c", 0))
+    humidity = float(summary.get("average_humidity_percent", 0))
+    rainfall = float(summary.get("average_rainfall_mm", 0))
+    floors = max(1, int(project.get("floors", 1) or 1))
+
+    if 18 <= avg_temp <= 28 and humidity <= 80:
+        plants = ["Lettuce", "Spinach", "Basil", "Pak choi", "Strawberry", "Mint"]
+    elif avg_temp > 28:
+        plants = ["Tomato", "Chili", "Okra", "Eggplant", "Cucumber", "Water spinach"]
+    else:
+        plants = ["Kale", "Coriander", "Pea shoots", "Lettuce", "Strawberry", "Broccoli"]
+
+    if rainfall > 8:
+        plants = ["Lettuce", "Basil", "Mint", "Pak choi", "Coriander", "Water spinach"]
+
+    floor_recommendations = []
+    floor_groups = [
+        ("Lower floor", plants[:2], "Use for heavier crops and stable root-zone temperature."),
+        ("Middle floor", plants[2:4], "Use for balanced airflow and moderate light."),
+        ("Upper floor", plants[4:6], "Use for crops that benefit from stronger light and ventilation."),
+    ]
+    for index in range(min(floors, 3)):
+        label, floor_plants, reason = floor_groups[index]
+        floor_recommendations.append({
+            "floor": index + 1,
+            "label": label,
+            "plants": floor_plants,
+            "reason": reason,
+        })
+    if floors == 4:
+        floor_recommendations.append({
+            "floor": 4,
+            "label": "Top floor",
+            "plants": [plants[-1], plants[0]],
+            "reason": "Reserve for the highest-light crops with active cooling and humidity control.",
+        })
+
+    report = (
+        f"Based on {summary.get('sample_days', 0)} stored weather days, average temperature is "
+        f"{avg_temp:g} C, humidity {humidity:g}%, and rainfall {rainfall:g} mm. "
+        f"Prioritize {', '.join(plants[:4])}. Match crop height and light demand to the recommended floors."
+    )
+    return plants, floor_recommendations, report, "NuroAgro 75-day local analysis"
+
+
+def seasonal_analysis_with_agent(summary, project):
+    plants, floor_recommendations, report, source = local_seasonal_recommendation(summary, project)
+    if not OPENAI_API_KEY:
+        return plants, floor_recommendations, report, source
+
+    context = {
+        "project": {
+            "name": project.get("name"),
+            "area_sq_ft": project.get("area"),
+            "floors": project.get("floors"),
+            "goal": project.get("goal"),
+            "latitude": project.get("lat"),
+            "longitude": project.get("lng"),
+        },
+        "weather_summary": summary,
+        "local_recommendation": {
+            "preferred_plants": plants,
+            "floor_recommendations": floor_recommendations,
+        },
+    }
+    try:
+        response = requests.post(
+            OPENAI_RESPONSES_URL,
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": OPENAI_PROJECT_MODEL,
+                "reasoning": {"effort": "low"},
+                "instructions": (
+                    "You are NuroAgro's 75-day crop planning advisor. Analyze location, stored weather averages, "
+                    "next-day model prediction, farm goal, and vertical floor count. Return a concise practical "
+                    "report that recommends plants and assigns suitable crops to each available floor. Mention "
+                    "weather risks and environmental controls. Do not invent unavailable measurements."
+                ),
+                "input": json.dumps(context),
+                "max_output_tokens": 800,
+            },
+            timeout=45,
+        )
+        response.raise_for_status()
+        agent_report = extract_response_text(response.json())
+        if agent_report:
+            report = agent_report
+            source = f"OpenAI {OPENAI_PROJECT_MODEL}"
+    except Exception as exc:
+        logger.warning("OpenAI seasonal weather analysis failed; using local fallback: %s", exc)
+
+    return plants, floor_recommendations, report, source
+
+
+def get_or_create_seasonal_analysis(state, user, project, bundle, next_day_prediction):
+    project_id = project.get("id", "")
+    analyses = [
+        item for item in state.get("seasonal_analyses", [])
+        if item.get("user_id") == user["id"] and item.get("project_id") == project_id
+    ]
+    if analyses:
+        latest = analyses[-1]
+        next_analysis_at = parse_iso_datetime(latest.get("next_analysis_at"))
+        if next_analysis_at and datetime.now(timezone.utc) < next_analysis_at.astimezone(timezone.utc):
+            return latest
+
+    summary = seasonal_weather_summary(state, user["id"], project_id, bundle, next_day_prediction)
+    plants, floor_recommendations, report, source = seasonal_analysis_with_agent(summary, project)
+    generated_at = datetime.now(timezone.utc)
+    record = {
+        "id": f"SEA-{uuid.uuid4().hex[:10].upper()}",
+        "user_id": user["id"],
+        "project_id": project_id,
+        "generated_at": generated_at.isoformat(),
+        "next_analysis_at": (generated_at + timedelta(days=SEASONAL_ANALYSIS_DAYS)).isoformat(),
+        "latitude": float(bundle.get("latitude", project.get("lat", 0)) or 0),
+        "longitude": float(bundle.get("longitude", project.get("lng", 0)) or 0),
+        "preferred_plants": plants,
+        "floor_recommendations": floor_recommendations,
+        "source": source,
+        "report": report,
+        "weather_summary": summary,
+    }
+    state.setdefault("seasonal_analyses", []).append(record)
+    supabase_insert("seasonal_analyses", record)
+    return record
 
 
 def analyze_project(project, forecast):
@@ -775,7 +1463,7 @@ def build_admin_context(state, admin=None, error=None, notice=None):
         "activities": list(reversed(state.get("activities", [])[-50:])),
         "sensor_count": len(state.get("sensor_history", [])),
         "disease_count": len(state.get("disease_history", [])),
-        "supabase_enabled": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY),
+        "supabase_enabled": supabase_configured(),
     }
 
 
@@ -808,31 +1496,80 @@ def create_project_from_form(form, owner_id):
     }
 
 
+PLANT_COLOR_PALETTE = [
+    sv.Color(46, 134, 222),
+    sv.Color(16, 172, 132),
+    sv.Color(245, 166, 35),
+    sv.Color(155, 89, 182),
+    sv.Color(231, 76, 60),
+    sv.Color(0, 184, 212),
+    sv.Color(121, 85, 72),
+    sv.Color(63, 81, 181),
+]
+
+
+def detection_color(model_key, class_name, class_id):
+    if model_key == "rice":
+        return COLOR_MAP.get(class_name, sv.Color(128, 128, 128))
+    return PLANT_COLOR_PALETTE[int(class_id) % len(PLANT_COLOR_PALETTE)]
+
+
+def disease_recommendation(class_name):
+    if class_name in DISEASE_ACTIONS:
+        return DISEASE_ACTIONS[class_name]
+    if class_name in PLANT_HEALTHY_CLASSES:
+        return "Healthy leaf class detected. Continue routine monitoring, balanced nutrition, and sanitation."
+
+    normalized_name = class_name.lower()
+    for disease_term, guidance in PLANT_DISEASE_GUIDANCE.items():
+        if disease_term in normalized_name:
+            return guidance
+    return "Inspect the affected plant, isolate suspicious foliage, sanitize tools, and confirm with a local crop specialist."
+
+
 def process_image(image_path):
-    if disease_model is None:
-        return None, "Disease model is not available", {}, []
+    model_specs = [
+        ("rice", "Rice", rice_disease_model),
+        ("plant", "Plant", plant_disease_model),
+    ]
+    available_models = [spec for spec in model_specs if spec[2] is not None]
+    if not available_models:
+        return None, "Disease models are not available", {}, [], []
 
     try:
         image = cv2.imread(image_path)
         if image is None:
-            return None, "Error: Could not load image", {}, []
+            return None, "Error: Could not load image", {}, [], []
 
         image = cv2.resize(image, (1280, 720))
-        results = disease_model(image)[0]
-        detections = sv.Detections.from_ultralytics(results)
-
-        disease_counts = {}
-        if len(detections) > 0:
-            for class_id in detections.class_id:
-                class_name = results.names[class_id]
-                disease_counts[class_name] = disease_counts.get(class_name, 0) + 1
-
         annotated_image = image.copy()
-        if len(detections) > 0:
+        disease_counts = {}
+        detection_records = []
+        successful_models = 0
+
+        for model_key, model_label, model in available_models:
+            try:
+                results = model(image, verbose=False)[0]
+                detections = sv.Detections.from_ultralytics(results)
+                successful_models += 1
+            except Exception as exc:
+                logger.exception("%s disease model inference failed: %s", model_label, exc)
+                continue
+
             for detection_idx, xyxy in enumerate(detections.xyxy):
                 class_id = detections.class_id[detection_idx]
                 class_name = results.names[class_id]
-                color = COLOR_MAP.get(class_name, sv.Color(128, 128, 128))
+                confidence = float(detections.confidence[detection_idx])
+                disease_counts[class_name] = disease_counts.get(class_name, 0) + 1
+                detection_records.append({
+                    "model": model_key,
+                    "model_label": model_label,
+                    "class_id": int(class_id),
+                    "class_name": class_name,
+                    "confidence": round(confidence, 5),
+                    "bbox": [round(float(value), 2) for value in xyxy],
+                })
+                color = detection_color(model_key, class_name, class_id)
                 single_detection = sv.Detections(
                     xyxy=np.array([xyxy]),
                     class_id=np.array([class_id]),
@@ -845,12 +1582,15 @@ def process_image(image_path):
                     text_position=sv.Position.TOP_LEFT,
                 )
                 annotated_image = box_annotator.annotate(scene=annotated_image, detections=single_detection)
-                labels = [f"{class_name}: {single_detection.confidence[0]:.2f}"]
+                labels = [f"{model_label} | {class_name}: {single_detection.confidence[0]:.2f}"]
                 annotated_image = label_annotator.annotate(
                     scene=annotated_image,
                     detections=single_detection,
                     labels=labels,
                 )
+
+        if successful_models == 0:
+            return None, "Both disease models failed during image analysis", {}, [], []
 
         y_offset = 30
         for disease, count in disease_counts.items():
@@ -869,28 +1609,21 @@ def process_image(image_path):
         output_filename = os.path.join(app.config["UPLOAD_FOLDER"], f"output_{timestamp}.jpg")
         cv2.imwrite(output_filename, annotated_image)
         output_path = f"uploads/output_{timestamp}.jpg"
-        recommendations = [
-            DISEASE_ACTIONS.get(disease, "Inspect the affected area and isolate unhealthy plants.")
-            for disease in disease_counts
-        ] or ["No disease detected. Keep monitoring leaf color, humidity, and airflow."]
-        return output_path, None, disease_counts, recommendations
+        recommendations = []
+        for disease in disease_counts:
+            recommendation = f"{disease}: {disease_recommendation(disease)}"
+            if recommendation not in recommendations:
+                recommendations.append(recommendation)
+        if not recommendations:
+            recommendations = ["No disease detected by either model. Keep monitoring leaf color, humidity, and airflow."]
+        return output_path, None, disease_counts, recommendations, detection_records
 
     except Exception as exc:
         logger.exception("Error processing image: %s", exc)
-        return None, f"Error: {str(exc)}", {}, []
+        return None, f"Error: {str(exc)}", {}, [], []
 
 
 def build_context(state, user, disease_result=None, error=None, setup_result=None):
-    weather_error = None
-    try:
-        weather_forecast = predict_weather()
-    except Exception as exc:
-        weather_forecast = []
-        weather_error = str(exc)
-        logger.error("Weather prediction failed: %s", exc)
-
-    reading = latest_sensor(state)
-    automation, alerts = evaluate_automation(reading)
     projects = [project for project in state.get("projects", []) if project.get("owner_id") == user.get("id")]
     current_project = projects[-1] if projects else {
         "id": "",
@@ -901,6 +1634,36 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "lng": user.get("location", {}).get("lng", ""),
         "goal": "hybrid vertical farming",
     }
+
+    weather_bundle, realtime_weather_error = get_location_weather(state, user, current_project)
+    weather_error = realtime_weather_error
+    try:
+        weather_forecast = predict_weather(weather_bundle)
+    except Exception as exc:
+        weather_forecast = []
+        weather_error = str(exc)
+        logger.error("Weather prediction failed: %s", exc)
+
+    next_day_prediction = None
+    seasonal_analysis = None
+    if weather_bundle and weather_forecast:
+        next_day_prediction = store_next_day_prediction(state, user, current_project, weather_forecast, weather_bundle)
+        if projects:
+            seasonal_analysis = get_or_create_seasonal_analysis(
+                state,
+                user,
+                current_project,
+                weather_bundle,
+                next_day_prediction,
+            )
+        save_state(state)
+
+    reading = latest_sensor(state)
+    automation, alerts = evaluate_automation(reading)
+    sensor_project_id = current_project.get("id") or reading.get("project_id", "")
+    sensor_analysis = get_or_create_sensor_analysis(state, sensor_project_id)
+    if sensor_analysis:
+        save_state(state)
     project_analysis = current_project.get("analysis")
     if not project_analysis and projects and weather_forecast:
         project_analysis = analyze_project(current_project, weather_forecast)
@@ -919,6 +1682,34 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
     disease_history = [
         record for record in state.get("disease_history", [])
         if record.get("project_id") in project_ids
+        or record.get("user_id") == user.get("id")
+    ]
+    sensor_history = [
+        record for record in state.get("sensor_history", [])
+        if record.get("project_id") in project_ids
+    ]
+    weather_history = [
+        record for record in state.get("weather_snapshots", [])
+        if record.get("user_id") == user.get("id")
+        or record.get("project_id") in project_ids
+    ]
+    prediction_history = [
+        record for record in state.get("weather_predictions", [])
+        if record.get("user_id") == user.get("id")
+        or record.get("project_id") in project_ids
+    ]
+    seasonal_history = [
+        record for record in state.get("seasonal_analyses", [])
+        if record.get("user_id") == user.get("id")
+        or record.get("project_id") in project_ids
+    ]
+    sensor_analysis_history = [
+        record for record in state.get("sensor_analyses", [])
+        if record.get("project_id") in project_ids
+    ]
+    activity_history = [
+        record for record in state.get("activities", [])
+        if record.get("actor_type") == "user" and record.get("actor_id") == user.get("id")
     ]
 
     return {
@@ -930,11 +1721,15 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "hardware_components": HARDWARE_COMPONENTS,
         "weather_features": WEATHER_FEATURES,
         "weather_forecast": weather_forecast,
+        "realtime_weather": weather_bundle,
+        "next_day_prediction": next_day_prediction,
+        "seasonal_analysis": seasonal_analysis,
         "weather_error": weather_error,
         "sensor_cards": sensor_cards(reading),
         "latest_sensor": reading,
         "automation": automation,
         "alerts": alerts,
+        "sensor_analysis": sensor_analysis,
         "recommendations": build_recommendations(reading, weather_forecast, disease_history),
         "projects": projects,
         "has_projects": bool(projects),
@@ -949,17 +1744,52 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "project_analysis": project_analysis,
         "controls": state.get("controls", {}),
         "disease_history": list(reversed(disease_history[-5:])),
-        "supabase_enabled": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY),
+        "history": {
+            "projects": list(reversed(projects)),
+            "diseases": list(reversed(disease_history)),
+            "sensors": list(reversed(sensor_history)),
+            "weather": list(reversed(weather_history)),
+            "predictions": list(reversed(prediction_history)),
+            "seasonal": list(reversed(seasonal_history)),
+            "sensor_analyses": list(reversed(sensor_analysis_history)),
+            "activities": list(reversed(activity_history)),
+        },
+        "history_counts": {
+            "all": (
+                len(projects)
+                + len(disease_history)
+                + len(sensor_history)
+                + len(weather_history)
+                + len(prediction_history)
+                + len(seasonal_history)
+                + len(sensor_analysis_history)
+                + len(activity_history)
+            ),
+            "diseases": len(disease_history),
+            "sensors": len(sensor_history),
+            "weather": len(weather_history) + len(prediction_history),
+            "analyses": len(seasonal_history) + len(sensor_analysis_history),
+            "activities": len(activity_history) + len(projects),
+        },
+        "supabase_enabled": supabase_configured(),
         "sample_camera_image": url_for("static", filename="uploads/images_7.jpg"),
     }
 
 
 @app.route("/favicon.ico")
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, "static"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
+    favicon_svg = """
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="12" fill="#176b87"/>
+        <path d="M18 46V18h7l14 17V18h7v28h-7L25 29v17z" fill="#fff"/>
+        <path d="M42 13c7 1 10 5 9 12-7 0-11-4-9-12z" fill="#66d1aa"/>
+    </svg>
+    """
+    return Response(favicon_svg, mimetype="image/svg+xml")
 
 
 @app.route("/signup", methods=["GET", "POST"])
+@state_transaction
 def signup():
     state = load_state()
     error = None
@@ -1003,6 +1833,7 @@ def signup():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@state_transaction
 def login():
     state = load_state()
     error = None
@@ -1033,6 +1864,7 @@ def login():
 
 
 @app.route("/logout", methods=["POST"])
+@state_transaction
 def logout():
     state = load_state()
     user = current_user(state)
@@ -1044,6 +1876,7 @@ def logout():
 
 
 @app.route("/", methods=["GET", "POST"])
+@state_transaction
 def index():
     state = load_state()
     user = current_user(state)
@@ -1061,7 +1894,12 @@ def index():
         if form_type == "project_setup":
             try:
                 project = create_project_from_form(request.form, user["id"])
-                forecast = predict_weather()
+                try:
+                    weather_bundle = fetch_location_weather(project["lat"], project["lng"])
+                except Exception as weather_exc:
+                    logger.warning("Project weather lookup failed; using model fallback: %s", weather_exc)
+                    weather_bundle = None
+                forecast = predict_weather(weather_bundle)
                 setup_result = analyze_project_with_agent(project, forecast)
                 project["analysis"] = setup_result
                 state.setdefault("projects", []).append(project)
@@ -1070,6 +1908,10 @@ def index():
                     "lat": project["lat"],
                     "lng": project["lng"],
                 }
+                if weather_bundle:
+                    store_daily_weather(state, user, project, weather_bundle)
+                    next_day_prediction = store_next_day_prediction(state, user, project, forecast, weather_bundle)
+                    get_or_create_seasonal_analysis(state, user, project, weather_bundle, next_day_prediction)
                 record_activity(state, "user", user["id"], "project_created", project["name"])
                 save_state(state)
                 supabase_insert("projects", project)
@@ -1097,7 +1939,13 @@ def index():
                 filename = secure_filename(file.filename)
                 filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
                 file.save(filepath)
-                output_path, processing_error, disease_counts, disease_recommendations = process_image(filepath)
+                (
+                    output_path,
+                    processing_error,
+                    disease_counts,
+                    disease_recommendations,
+                    detection_records,
+                ) = process_image(filepath)
                 if processing_error:
                     error = processing_error
                 else:
@@ -1119,7 +1967,9 @@ def index():
                         ),
                         "image": disease_result["image"],
                         "summary": disease_counts,
+                        "detections": detection_records,
                         "recommendations": disease_recommendations,
+                        "user_id": user["id"],
                     }
                     state.setdefault("disease_history", []).append(record)
                     record_activity(state, "user", user["id"], "disease_scan", filename)
@@ -1139,6 +1989,7 @@ def index():
 
 
 @app.route("/admin", methods=["GET", "POST"])
+@state_transaction
 def admin_dashboard():
     state = load_state()
     error = None
@@ -1198,13 +2049,14 @@ def admin_dashboard():
 
 
 @app.route("/api/sensors", methods=["POST"])
+@state_transaction
 def api_sensors():
     state = load_state()
     payload = request.get_json(silent=True) or request.form.to_dict()
     reading = normalize_sensor_payload(payload)
     actions, alerts = evaluate_automation(reading)
     state.setdefault("sensor_history", []).append(reading)
-    state["sensor_history"] = state["sensor_history"][-500:]
+    sensor_analysis = get_or_create_sensor_analysis(state, reading.get("project_id", ""))
     save_state(state)
     supabase_insert("sensor_readings", reading)
     return jsonify({
@@ -1212,22 +2064,29 @@ def api_sensors():
         "stored": reading,
         "automation": actions,
         "alerts": alerts,
+        "two_hour_analysis": sensor_analysis,
     })
 
 
 @app.route("/api/status", methods=["GET"])
+@state_transaction
 def api_status():
     state = load_state()
     reading = latest_sensor(state)
     actions, alerts = evaluate_automation(reading)
+    sensor_analysis = get_or_create_sensor_analysis(state, reading.get("project_id", ""))
+    if sensor_analysis:
+        save_state(state)
     return jsonify({
         "app": APP_NAME,
         "latest_sensor": reading,
         "automation": actions,
         "alerts": alerts,
-        "supabase_enabled": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY),
+        "two_hour_analysis": sensor_analysis,
+        "supabase_enabled": supabase_configured(),
     })
 
 
 if __name__ == "__main__":
+    threading.Thread(target=sensor_analysis_scheduler, daemon=True, name="sensor-analysis-scheduler").start()
     app.run(debug=True, use_reloader=False)

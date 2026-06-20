@@ -3,145 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name }} Farm Intelligence</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <script>
+        if (window.location.protocol === "file:") {
+            window.location.replace("http://127.0.0.1:5000/");
+        }
+    </script>
+    <title>{{ app_name }} Farm Workspace</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('favicon') }}">
     <style>
         :root {
-            --ink: #14201d;
-            --muted: #64716d;
-            --line: #d9e3df;
-            --panel: #ffffff;
-            --page: #f4f7f4;
-            --green: #1f7a4d;
-            --teal: #0c8191;
-            --amber: #c7811f;
-            --red: #b83b3b;
-            --blue: #315eaa;
-            --shadow: 0 16px 40px rgba(26, 46, 41, 0.10);
+            --bg: #f1f5f8;
+            --surface: #ffffff;
+            --surface-soft: #f7f9fc;
+            --ink: #172238;
+            --muted: #677287;
+            --line: #dce3ec;
+            --primary: #176b87;
+            --primary-strong: #10536b;
+            --cyan: #26998c;
+            --blue: #5366d8;
+            --amber: #cc8420;
+            --danger: #c14f55;
+            --sidebar: #16233a;
+            --shadow: 0 12px 30px rgba(26, 43, 72, 0.09);
+            --sidebar-width: 248px;
         }
 
         * {
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
         body {
             margin: 0;
+            min-width: 320px;
+            max-width: 100%;
+            overflow-x: hidden;
             color: var(--ink);
-            background: var(--page);
-            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
             letter-spacing: 0;
         }
 
-        a {
-            color: inherit;
-            text-decoration: none;
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
         }
 
         .app-shell {
-            display: grid;
-            grid-template-columns: 260px minmax(0, 1fr);
             min-height: 100vh;
+            display: grid;
+            grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
         }
 
         .sidebar {
             position: sticky;
             top: 0;
             height: 100vh;
-            padding: 22px;
-            background: #10211d;
-            color: #f7fbf8;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 16px;
+            background: var(--sidebar);
+            color: #eef7f3;
         }
 
         .brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 28px;
+            min-height: 48px;
+            padding: 0 8px;
         }
 
         .brand-mark {
             display: grid;
             place-items: center;
-            width: 42px;
-            height: 42px;
+            width: 40px;
+            height: 40px;
+            flex: 0 0 40px;
             border-radius: 8px;
-            background: #2fa36a;
+            background: #26998c;
             color: white;
+            font-size: 13px;
             font-weight: 800;
         }
 
         .brand h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 21px;
         }
 
         .brand p {
-            margin: 3px 0 0;
-            color: #a9bbb5;
+            margin: 2px 0 0;
+            color: #aebfba;
             font-size: 12px;
         }
 
         .nav {
             display: grid;
-            gap: 8px;
+            gap: 6px;
+            margin-top: 32px;
         }
 
-        .nav a {
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            width: 100%;
+            min-height: 44px;
             padding: 10px 12px;
+            border: 0;
             border-radius: 8px;
-            color: #dce8e3;
+            background: transparent;
+            color: #cddbd6;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 650;
+            transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+        }
+
+        .nav-button:hover,
+        .nav-button.active {
+            background: rgba(255, 255, 255, 0.09);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .nav-button.active {
+            box-shadow: inset 3px 0 0 #52d0bd;
+        }
+
+        .nav-button svg,
+        .icon-button svg,
+        .button svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+        }
+
+        .account {
+            margin-top: auto;
+            padding: 14px 8px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.10);
+        }
+
+        .account strong,
+        .account span {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .account strong {
             font-size: 14px;
         }
 
-        .nav a:hover {
-            background: rgba(255, 255, 255, 0.08);
+        .account span {
+            margin-top: 3px;
+            color: #aebfba;
+            font-size: 12px;
         }
 
-        .sidebar-status {
-            margin-top: 28px;
-            padding: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+        .logout {
+            width: 100%;
+            margin-top: 12px;
+            padding: 9px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
             border-radius: 8px;
-            color: #dce8e3;
-            font-size: 13px;
-        }
-
-        .sidebar-status strong {
-            display: block;
-            margin-bottom: 6px;
-            color: white;
+            background: transparent;
+            color: #eaf3ef;
+            font-weight: 700;
         }
 
         .main {
             min-width: 0;
-            padding: 24px;
+            padding: 24px clamp(18px, 3vw, 36px) 40px;
         }
 
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 18px;
+            gap: 20px;
+            min-height: 56px;
             margin-bottom: 22px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .language-switch {
+            display: inline-flex;
+            padding: 3px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 6px 18px rgba(26, 43, 72, 0.06);
+        }
+
+        .language-button {
+            min-width: 44px;
+            min-height: 32px;
+            padding: 5px 9px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .language-button.active {
+            background: var(--primary);
+            color: white;
         }
 
         .topbar h2 {
             margin: 0;
-            font-size: 28px;
+            font-size: 26px;
+            line-height: 1.2;
         }
 
         .topbar p {
-            margin: 6px 0 0;
+            margin: 5px 0 0;
             color: var(--muted);
+            font-size: 14px;
         }
 
-        .status-pill {
+        .project-badge {
+            max-width: 280px;
             padding: 9px 12px;
+            overflow: hidden;
+            border: 1px solid #cde2d7;
             border-radius: 8px;
-            background: #e8f5ef;
-            color: var(--green);
-            font-weight: 700;
+            background: #edf7f1;
+            color: var(--primary-strong);
+            font-size: 13px;
+            font-weight: 750;
+            text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .app-page {
+            display: none;
+            animation: page-in 160ms ease-out;
+        }
+
+        .app-page.active {
+            display: block;
+        }
+
+        .dashboard-hero {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
+            gap: 20px;
+            min-height: 210px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            padding: 24px;
+            border-radius: 8px;
+            color: white;
+            background:
+                linear-gradient(115deg, rgba(20, 36, 62, 0.98), rgba(23, 107, 135, 0.92)),
+                #16243e;
+            box-shadow: 0 18px 42px rgba(22, 35, 58, 0.20);
+        }
+
+        .dashboard-hero::after {
+            content: "";
+            position: absolute;
+            right: -60px;
+            bottom: -100px;
+            width: 260px;
+            height: 260px;
+            border: 36px solid rgba(255, 255, 255, 0.07);
+            border-radius: 50%;
+            animation: hero-orbit 8s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .hero-copy,
+        .hero-status {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-copy span {
+            color: #aee4d8;
+            font-size: 11px;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .hero-copy h3 {
+            max-width: 700px;
+            margin: 9px 0;
+            font-size: clamp(25px, 3vw, 38px);
+            line-height: 1.15;
+        }
+
+        .hero-copy p {
+            max-width: 650px;
+            margin: 0;
+            color: #d7e8e6;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .hero-status {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-content: center;
+        }
+
+        .hero-stat {
+            min-width: 0;
+            padding: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .hero-stat span,
+        .hero-stat strong {
+            display: block;
+        }
+
+        .hero-stat span {
+            color: #b9d6d3;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .hero-stat strong {
+            margin-top: 6px;
+            overflow: hidden;
+            font-size: 18px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @keyframes hero-orbit {
+            0%, 100% { transform: translate(0, 0) scale(0.92); }
+            50% { transform: translate(-18px, -10px) scale(1.04); }
+        }
+
+        @keyframes page-in {
+            from { opacity: 0; transform: translateY(3px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .grid {
@@ -149,417 +376,1200 @@
             gap: 16px;
         }
 
-        .kpi-grid {
+        .metrics {
             grid-template-columns: repeat(5, minmax(130px, 1fr));
+            margin-bottom: 16px;
         }
 
-        .two-col {
-            grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-        }
-
-        .three-col {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+        .two-column {
+            grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
         }
 
         .sensor-grid {
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
 
-        .panel,
         .metric,
+        .panel,
         .sensor-card {
-            background: var(--panel);
             border: 1px solid var(--line);
             border-radius: 8px;
+            background: var(--surface);
             box-shadow: var(--shadow);
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
         }
 
-        .panel {
-            padding: 18px;
+        .panel:hover,
+        .metric:hover {
+            transform: translateY(-2px);
+            border-color: #c8d5e3;
+            box-shadow: 0 16px 36px rgba(26, 43, 72, 0.12);
         }
 
         .metric {
-            padding: 16px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .metric span,
-        .panel-kicker,
-        .sensor-card span {
+        .metric::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            height: 3px;
+            background: var(--primary);
+        }
+
+        .metric:nth-child(2)::before {
+            background: var(--cyan);
+        }
+
+        .metric:nth-child(3)::before {
+            background: var(--blue);
+        }
+
+        .metric:nth-child(4)::before {
+            background: var(--amber);
+        }
+
+        .metric:nth-child(5)::before {
+            background: #8c62bf;
+        }
+
+        .metric {
+            min-width: 0;
+            padding: 15px;
+        }
+
+        .metric-label,
+        .eyebrow,
+        .sensor-label {
             display: block;
             color: var(--muted);
-            font-size: 12px;
+            font-size: 11px;
+            font-weight: 800;
             text-transform: uppercase;
-            font-weight: 700;
         }
 
         .metric strong {
             display: block;
-            margin-top: 8px;
-            font-size: 26px;
+            margin-top: 9px;
+            overflow: hidden;
+            font-size: 25px;
+            line-height: 1.15;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .metric small {
+            display: block;
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel {
+            min-width: 0;
+            padding: 18px;
+            margin-bottom: 16px;
         }
 
         .panel-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 14px;
-            margin-bottom: 14px;
+            gap: 16px;
+            margin-bottom: 16px;
         }
 
         .panel-header h3 {
             margin: 4px 0 0;
-            font-size: 20px;
+            font-size: 19px;
+            line-height: 1.3;
         }
 
         .panel-header p {
-            margin: 5px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        section {
-            scroll-margin-top: 22px;
-            margin-bottom: 18px;
-        }
-
-        .score-row {
-            display: grid;
-            gap: 12px;
-        }
-
-        .score-label {
-            display: flex;
-            justify-content: space-between;
+            margin: 6px 0 0;
             color: var(--muted);
             font-size: 13px;
-            margin-bottom: 6px;
+            line-height: 1.5;
         }
 
-        .bar-track {
-            height: 10px;
+        .status {
+            display: inline-flex;
+            align-items: center;
+            min-height: 26px;
+            padding: 5px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .status.stable {
+            background: #e8f5ee;
+            color: var(--primary);
+        }
+
+        .status.watch {
+            background: #fff5e4;
+            color: var(--amber);
+        }
+
+        .status.alert {
+            background: #fdecec;
+            color: var(--danger);
+        }
+
+        .score-list {
+            display: grid;
+            gap: 13px;
+            margin: 18px 0;
+        }
+
+        .score-heading {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .score-heading strong {
+            color: var(--ink);
+        }
+
+        .progress {
+            height: 9px;
+            overflow: hidden;
             border-radius: 8px;
             background: #e8eeeb;
-            overflow: hidden;
         }
 
-        .bar {
+        .progress > span {
+            display: block;
             height: 100%;
             border-radius: 8px;
-            background: var(--green);
+            background: var(--primary);
         }
 
-        .bar.alt {
-            background: var(--teal);
+        .progress > span.cyan {
+            background: var(--cyan);
         }
 
-        .chip-row {
+        .chips {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 7px;
         }
 
         .chip {
-            padding: 7px 9px;
+            padding: 6px 8px;
             border-radius: 8px;
-            background: #eef5f1;
-            color: #245542;
-            font-size: 13px;
-            font-weight: 700;
+            background: #edf5f1;
+            color: #245a41;
+            font-size: 12px;
+            font-weight: 750;
         }
 
         .chip.blue {
-            background: #eaf0fb;
+            background: #edf2fa;
             color: var(--blue);
         }
 
         .chip.amber {
-            background: #fbf2e3;
+            background: #fff4e3;
             color: var(--amber);
         }
 
-        .sensor-card {
-            padding: 14px;
-            min-height: 118px;
+        .subheading {
+            margin: 18px 0 9px;
+            font-size: 13px;
         }
 
-        .sensor-card strong {
+        .agent-report {
+            padding: 12px;
+            border-left: 4px solid var(--cyan);
+            border-radius: 8px;
+            background: #edf7f8;
+            color: #27474a;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .action-list {
+            display: grid;
+            gap: 9px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .action-list li {
+            padding: 11px 12px;
+            border-left: 3px solid var(--amber);
+            border-radius: 8px;
+            background: #fff9ef;
+            color: #55452b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .weather-summary {
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            margin-bottom: 14px;
+        }
+
+        .weather-layout {
+            grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+            margin-bottom: 16px;
+        }
+
+        .weather-current {
+            position: relative;
+            min-height: 220px;
+            overflow: hidden;
+            padding: 20px;
+            border: 1px solid #cce0da;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #eaf7f1, #eef7fa);
+        }
+
+        .weather-current::after {
+            content: "";
+            position: absolute;
+            right: -42px;
+            bottom: -52px;
+            width: 150px;
+            height: 150px;
+            border: 26px solid rgba(8, 127, 140, 0.08);
+            border-radius: 50%;
+            animation: weather-pulse 5s ease-in-out infinite;
+        }
+
+        .weather-icon {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
+            background: white;
+            color: var(--cyan);
+            box-shadow: var(--shadow);
+            animation: weather-float 3.5s ease-in-out infinite;
+        }
+
+        .weather-icon svg {
+            width: 25px;
+            height: 25px;
+        }
+
+        .weather-temperature {
+            position: relative;
+            z-index: 1;
+            margin: 24px 0 4px;
+            font-size: 44px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .weather-condition {
+            position: relative;
+            z-index: 1;
+            color: #315c56;
+            font-size: 15px;
+            font-weight: 750;
+        }
+
+        .weather-meta {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-top: 20px;
+        }
+
+        .weather-meta div {
+            padding: 9px;
+            border: 1px solid rgba(25, 115, 74, 0.12);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.68);
+        }
+
+        .weather-meta span {
             display: block;
-            margin: 12px 0 8px;
-            font-size: 24px;
-        }
-
-        .sensor-card small {
             color: var(--muted);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
         }
 
-        .sensor-card.alert {
-            border-color: #efc5c5;
-            background: #fff7f7;
+        .weather-meta strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 14px;
         }
 
-        .sensor-card.watch {
-            border-color: #efd7aa;
-            background: #fffaf0;
+        .prediction-panel {
+            padding: 18px;
+            border: 1px solid #d5dfec;
+            border-radius: 8px;
+            background: #f4f7fc;
+        }
+
+        .prediction-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .prediction-header h4 {
+            margin: 3px 0 0;
+            font-size: 17px;
+        }
+
+        .prediction-values {
+            grid-template-columns: repeat(3, minmax(100px, 1fr));
+        }
+
+        .forecast-strip {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(116px, 1fr));
+            gap: 9px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .forecast-day {
+            min-width: 116px;
+            padding: 11px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-soft);
+            transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .forecast-day:hover {
+            transform: translateY(-3px);
+            border-color: #b8d4c7;
+            box-shadow: 0 10px 22px rgba(20, 35, 31, 0.10);
+        }
+
+        .forecast-day time,
+        .forecast-day span {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .forecast-day strong {
+            display: block;
+            margin: 8px 0 5px;
+            font-size: 18px;
+        }
+
+        .seasonal-plan {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid #ded9c8;
+            border-radius: 8px;
+            background: #fffdf5;
+        }
+
+        .floor-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            margin-top: 12px;
+        }
+
+        .floor-card {
+            padding: 12px;
+            border: 1px solid #e8dfc5;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .floor-card strong,
+        .floor-card span {
+            display: block;
+        }
+
+        .floor-card span,
+        .floor-card p {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .floor-card p {
+            margin: 7px 0 0;
+            line-height: 1.45;
+        }
+
+        details.model-outlook {
+            margin-top: 14px;
+        }
+
+        details.model-outlook summary {
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        details.model-outlook .table-wrap {
+            margin-top: 10px;
+        }
+
+        @keyframes weather-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes weather-pulse {
+            0%, 100% { transform: scale(0.92); opacity: 0.65; }
+            50% { transform: scale(1.04); opacity: 1; }
+        }
+
+        .weather-value {
+            padding: 13px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-soft);
+        }
+
+        .weather-value span {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 750;
+            text-transform: uppercase;
+        }
+
+        .weather-value strong {
+            display: block;
+            margin-top: 7px;
+            font-size: 20px;
         }
 
         .table-wrap {
             width: 100%;
             overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 8px;
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
             min-width: 720px;
-            font-size: 14px;
+            border-collapse: collapse;
+            background: white;
+            font-size: 13px;
         }
 
         th,
         td {
-            padding: 10px;
+            padding: 10px 12px;
             border-bottom: 1px solid var(--line);
             text-align: left;
-            vertical-align: top;
+            vertical-align: middle;
         }
 
         th {
             color: var(--muted);
-            font-size: 12px;
+            background: #f7f9f8;
+            font-size: 11px;
             text-transform: uppercase;
-            background: #f7faf8;
         }
 
-        .status {
-            display: inline-block;
-            padding: 5px 8px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .status.accepted,
-        .status.stable {
-            background: #e8f5ef;
-            color: var(--green);
-        }
-
-        .status.pending,
-        .status.watch {
-            background: #fbf2e3;
-            color: var(--amber);
-        }
-
-        .status.alert {
-            background: #ffe9e9;
-            color: var(--red);
-        }
-
-        form {
-            margin: 0;
+        tr:last-child td {
+            border-bottom: 0;
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
+            gap: 14px;
         }
 
         label {
             display: block;
             margin-bottom: 6px;
             color: var(--muted);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
         }
 
         input,
-        select,
-        textarea {
+        select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #c9d6d1;
+            min-height: 42px;
+            padding: 9px 10px;
+            border: 1px solid #cbd7d2;
             border-radius: 8px;
+            outline: none;
             background: white;
             color: var(--ink);
-            font: inherit;
         }
 
-        textarea {
-            min-height: 82px;
-            resize: vertical;
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(25, 115, 74, 0.12);
+        }
+
+        input[readonly] {
+            background: #f3f6f5;
+            color: var(--muted);
         }
 
         .button-row {
             display: flex;
+            align-items: center;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 12px;
+            gap: 9px;
+            margin-top: 15px;
         }
 
-        button,
         .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 9px 13px;
             border: 0;
             border-radius: 8px;
-            padding: 10px 12px;
-            background: var(--green);
+            background: var(--primary);
             color: white;
-            cursor: pointer;
-            font-weight: 800;
+            font-weight: 750;
         }
 
-        button.secondary {
-            background: #ecf2ef;
-            color: #245542;
+        .button:hover {
+            background: var(--primary-strong);
         }
 
-        button.danger {
-            background: var(--red);
+        .button.secondary {
+            border: 1px solid #cbd7d2;
+            background: white;
+            color: #315046;
         }
 
-        .alert-list {
-            display: grid;
-            gap: 8px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
+        .button.secondary:hover {
+            background: #f4f7f5;
         }
 
-        .alert-list li {
-            padding: 10px;
-            border-left: 4px solid var(--amber);
+        .location-status {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .message {
+            padding: 11px 12px;
+            margin-bottom: 14px;
             border-radius: 8px;
-            background: #fffaf0;
+            font-size: 13px;
+            font-weight: 700;
         }
 
-        .map {
-            position: relative;
-            height: 280px;
-            border-radius: 8px;
-            border: 1px solid var(--line);
+        .message.error {
+            background: #fdecec;
+            color: var(--danger);
+        }
+
+        .message.success {
+            background: #e8f5ee;
+            color: var(--primary);
+        }
+
+        .sensor-card {
+            min-height: 112px;
+            padding: 14px;
             overflow: hidden;
-            background:
-                linear-gradient(90deg, rgba(12, 129, 145, 0.10) 1px, transparent 1px),
-                linear-gradient(rgba(12, 129, 145, 0.10) 1px, transparent 1px),
-                #e8f3f1;
-            background-size: 42px 42px;
+            position: relative;
         }
 
-        .map::before {
+        .sensor-card::after {
             content: "";
             position: absolute;
-            inset: 24px 36px;
-            border-radius: 48% 52% 46% 54%;
-            background: #c9ddd6;
-            transform: rotate(-8deg);
-        }
-
-        .map-point {
-            position: absolute;
-            width: 12px;
-            height: 12px;
+            right: -22px;
+            bottom: -28px;
+            width: 72px;
+            height: 72px;
+            border: 14px solid rgba(23, 107, 135, 0.06);
             border-radius: 50%;
-            background: var(--green);
-            border: 2px solid white;
-            box-shadow: 0 0 0 5px rgba(31, 122, 77, 0.18);
+            animation: sensor-breathe 4s ease-in-out infinite;
         }
 
-        .map-point.pending {
-            background: var(--amber);
-            box-shadow: 0 0 0 5px rgba(199, 129, 31, 0.18);
+        .sensor-card.alert {
+            border-color: #ecc4c4;
+            background: #fff8f8;
+        }
+
+        .sensor-card.watch {
+            border-color: #ecd6ae;
+            background: #fffbf3;
+        }
+
+        .sensor-card strong {
+            display: block;
+            margin: 12px 0 7px;
+            font-size: 22px;
+        }
+
+        .sensor-card small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .control-select {
+            min-width: 112px;
+        }
+
+        .control-buttons {
+            display: inline-flex;
+            gap: 5px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #f3f6fa;
+        }
+
+        .control-button {
+            min-width: 52px;
+            min-height: 32px;
+            padding: 6px 9px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+        }
+
+        .control-button:hover {
+            transform: translateY(-1px);
+            background: white;
+            color: var(--primary);
+        }
+
+        .control-button.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(23, 107, 135, 0.24);
+        }
+
+        .analysis-score {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .score-ring {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: 78px;
+            height: 78px;
+            flex: 0 0 78px;
+            border-radius: 50%;
+            background: conic-gradient(var(--cyan) calc(var(--score) * 1%), #e4eaf0 0);
+            animation: score-arrive 700ms ease-out;
+        }
+
+        .score-ring::before {
+            content: "";
+            position: absolute;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: white;
+        }
+
+        .score-ring strong {
+            position: relative;
+            z-index: 1;
+            font-size: 18px;
+        }
+
+        .analysis-meta strong,
+        .analysis-meta span {
+            display: block;
+        }
+
+        .analysis-meta span {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        @keyframes sensor-breathe {
+            0%, 100% { transform: scale(0.86); opacity: 0.55; }
+            50% { transform: scale(1.08); opacity: 1; }
+        }
+
+        @keyframes score-arrive {
+            from { transform: scale(0.78) rotate(-20deg); opacity: 0; }
+            to { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        .camera-frame,
+        .output-image {
+            display: block;
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #101815;
+            object-fit: contain;
         }
 
         .camera-frame {
-            width: 100%;
             aspect-ratio: 16 / 10;
-            border-radius: 8px;
             object-fit: cover;
-            border: 1px solid var(--line);
-            background: #e8eeeb;
         }
 
         .output-image {
-            width: 100%;
-            max-height: 460px;
-            object-fit: contain;
-            border: 1px solid var(--line);
+            max-height: 470px;
+        }
+
+        .upload-zone {
+            padding: 18px;
+            border: 1px dashed #aebeb8;
             border-radius: 8px;
-            background: #0f1715;
+            background: var(--surface-soft);
+        }
+
+        .upload-zone input {
+            background: white;
         }
 
         .timeline {
             display: grid;
-            gap: 10px;
+            gap: 9px;
         }
 
         .timeline-item {
-            padding: 10px;
+            padding: 11px;
             border: 1px solid var(--line);
             border-radius: 8px;
-            background: #fbfdfc;
+            background: var(--surface-soft);
         }
 
-        .timeline-item strong {
+        .timeline-item time {
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 12px;
         }
 
-        .error {
-            padding: 10px;
+        .history-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .history-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .history-filter {
+            min-height: 36px;
+            padding: 7px 10px;
+            border: 1px solid var(--line);
             border-radius: 8px;
-            background: #ffe9e9;
-            color: var(--red);
-            font-weight: 700;
+            background: white;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
         }
 
-        .summary {
-            margin: 12px 0;
-            padding: 12px;
-            border-left: 4px solid var(--teal);
+        .history-filter.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .history-group {
+            margin-bottom: 16px;
+        }
+
+        .history-group[hidden] {
+            display: none;
+        }
+
+        .disease-history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .disease-history-card {
+            overflow: hidden;
+            border: 1px solid var(--line);
             border-radius: 8px;
-            background: #eef7f7;
+            background: white;
+            box-shadow: var(--shadow);
+            transition: transform 180ms ease, box-shadow 180ms ease;
         }
 
-        .summary p {
-            margin: 6px 0 0;
-            line-height: 1.55;
-            white-space: pre-line;
+        .disease-history-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 38px rgba(26, 43, 72, 0.14);
         }
 
-        @media (max-width: 1100px) {
-            .app-shell {
+        .disease-history-card img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+            background: #14211f;
+        }
+
+        .disease-history-body {
+            padding: 13px;
+        }
+
+        .disease-history-body time {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .disease-history-body h4 {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        .history-empty {
+            padding: 18px;
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .mobile-nav {
+            display: none;
+        }
+
+        @media (max-width: 1180px) {
+            .metrics {
+                grid-template-columns: repeat(3, minmax(130px, 1fr));
+            }
+
+            .two-column {
                 grid-template-columns: 1fr;
+            }
+
+            .weather-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-hero {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --sidebar-width: 88px;
             }
 
             .sidebar {
-                position: static;
-                height: auto;
+                padding-inline: 12px;
             }
 
-            .nav {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .brand {
+                justify-content: center;
+                padding: 0;
             }
 
-            .kpi-grid,
-            .two-col,
-            .three-col {
-                grid-template-columns: 1fr;
+            .brand-copy,
+            .nav-label,
+            .account strong,
+            .account span {
+                display: none;
+            }
+
+            .nav-button {
+                justify-content: center;
+                padding-inline: 8px;
+            }
+
+            .nav-button.active {
+                box-shadow: inset 0 -3px 0 #40b77b;
+            }
+
+            .logout {
+                font-size: 0;
+            }
+
+            .logout::after {
+                content: "Exit";
+                font-size: 12px;
+            }
+
+            .weather-summary {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
             }
         }
 
         @media (max-width: 680px) {
+            body {
+                padding-bottom: 72px;
+            }
+
+            .app-shell {
+                display: block;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
             .main {
-                padding: 14px;
+                padding: 16px 14px 28px;
             }
 
             .topbar {
                 align-items: flex-start;
+                margin-bottom: 16px;
+            }
+
+            .topbar-actions {
+                align-items: flex-end;
                 flex-direction: column;
             }
 
+            .topbar h2 {
+                font-size: 22px;
+            }
+
+            .topbar p {
+                font-size: 12px;
+            }
+
+            .project-badge {
+                display: none;
+            }
+
+            .metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .metric {
+                padding: 13px;
+            }
+
+            .metric strong {
+                font-size: 21px;
+            }
+
+            .panel {
+                padding: 14px;
+            }
+
+            .panel-header {
+                display: block;
+            }
+
+            .panel-header .status {
+                margin-top: 10px;
+            }
+
             .form-grid,
-            .nav {
+            .weather-summary {
                 grid-template-columns: 1fr;
+            }
+
+            .prediction-values {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .button-row {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .button-row .button,
+            .button-row form,
+            .button-row form .button {
+                width: 100%;
+            }
+
+            .sensor-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .sensor-card {
+                min-height: 105px;
+                padding: 12px;
+            }
+
+            .sensor-card strong {
+                font-size: 18px;
+                overflow-wrap: anywhere;
+            }
+
+            .control-buttons {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                width: 100%;
+            }
+
+            .control-button {
+                min-width: 0;
+            }
+
+            .automation-table-wrap {
+                overflow: visible;
+                border: 0;
+            }
+
+            .automation-table {
+                min-width: 0;
+                background: transparent;
+            }
+
+            .automation-table thead {
+                display: none;
+            }
+
+            .automation-table tbody,
+            .automation-table tr,
+            .automation-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .automation-table tr {
+                margin-bottom: 10px;
+                overflow: hidden;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: white;
+            }
+
+            .automation-table td {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 9px 11px;
+            }
+
+            .automation-table td::before {
+                content: attr(data-label);
+                color: var(--muted);
+                font-size: 10px;
+                font-weight: 800;
+                text-transform: uppercase;
+            }
+
+            .automation-table td[data-label="Manual setting"] {
+                display: grid;
+                gap: 8px;
+            }
+
+            .automation-table td[data-label="Manual setting"]::before {
+                display: block;
+            }
+
+            .mobile-nav {
+                position: fixed;
+                z-index: 20;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                min-height: 64px;
+                padding: 6px 5px calc(6px + env(safe-area-inset-bottom));
+                border-top: 1px solid var(--line);
+                background: rgba(255, 255, 255, 0.97);
+                box-shadow: 0 -8px 24px rgba(20, 35, 31, 0.10);
+            }
+
+            .mobile-nav .nav-button {
+                display: grid;
+                place-items: center;
+                gap: 2px;
+                min-height: 52px;
+                padding: 4px 2px;
+                color: var(--muted);
+                font-size: 10px;
+                text-align: center;
+                transform: none;
+            }
+
+            .dashboard-hero {
+                min-height: 0;
+                padding: 18px;
+            }
+
+            .hero-status {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .history-toolbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .history-filters {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .history-filter {
+                width: 100%;
+            }
+
+            .mobile-nav .nav-button.active {
+                color: var(--primary);
+                background: #edf7f1;
+                box-shadow: none;
+            }
+
+            .mobile-nav .nav-button svg {
+                width: 19px;
+                height: 19px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .metrics,
+            .sensor-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .metric-label,
+            .sensor-label {
+                font-size: 10px;
             }
         }
     </style>
@@ -569,425 +1579,1286 @@
         <aside class="sidebar">
             <div class="brand">
                 <div class="brand-mark">NA</div>
-                <div>
+                <div class="brand-copy">
                     <h1>{{ app_name }}</h1>
-                    <p>Farm intelligence system</p>
+                    <p>Farm intelligence</p>
                 </div>
             </div>
-            <nav class="nav">
-                <a href="#overview">Overview</a>
-                <a href="{{ url_for('admin_dashboard') }}">Admin</a>
-                <a href="#setup">Project setup</a>
-                <a href="#sensors">Sensors</a>
-                <a href="#automation">Automation</a>
-                <a href="#disease">Disease AI</a>
-                <a href="#weather">Weather AI</a>
-                <a href="#hardware">Hardware</a>
+
+            <nav class="nav" aria-label="User navigation">
+                <button class="nav-button active" type="button" data-page-target="dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+                </button>
+                <button class="nav-button" type="button" data-page-target="project">
+                    <i data-lucide="sprout"></i>
+                    <span class="nav-label" data-i18n="nav_project">Project Setup</span>
+                </button>
+                <button class="nav-button" type="button" data-page-target="sensors">
+                    <i data-lucide="activity"></i>
+                    <span class="nav-label" data-i18n="nav_sensors">Sensors</span>
+                </button>
+                <button class="nav-button" type="button" data-page-target="disease">
+                    <i data-lucide="scan-search"></i>
+                    <span class="nav-label" data-i18n="nav_disease">Disease AI</span>
+                </button>
+                <button class="nav-button" type="button" data-page-target="history">
+                    <i data-lucide="history"></i>
+                    <span class="nav-label" data-i18n="nav_history">History</span>
+                </button>
             </nav>
-            <div class="sidebar-status">
-                <strong>Database</strong>
-                {% if supabase_enabled %}
-                    Supabase REST is configured.
-                {% else %}
-                    Local JSON fallback is active. Add Supabase environment keys to sync cloud tables.
-                {% endif %}
+
+            <div class="account">
+                <strong>{{ user.name }}</strong>
+                <span>{{ user.email }}</span>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <button class="logout" type="submit" data-i18n="logout">Logout</button>
+                </form>
             </div>
         </aside>
 
         <main class="main">
-            <div class="topbar">
+            <header class="topbar">
                 <div>
-                    <h2>Welcome, {{ user.name }}</h2>
-                    <p>{{ user.email }} · Hydroponic, aquaponic, hybrid, and traditional farm operations.</p>
+                    <h2 id="page-title" data-i18n="page_dashboard">Dashboard</h2>
+                    <p id="page-subtitle" data-i18n="subtitle_dashboard">Farm performance, recommendations, and weather forecast.</p>
                 </div>
-                <div class="button-row">
-                    <div class="status-pill">Project: {{ current_project.name }}</div>
-                    <form method="post" action="{{ url_for('logout') }}">
-                        <button class="secondary" type="submit">Logout</button>
-                    </form>
+                <div class="topbar-actions">
+                    <div class="language-switch" aria-label="Language">
+                        <button class="language-button active" type="button" data-language="en">EN</button>
+                        <button class="language-button" type="button" data-language="bn">বাংলা</button>
+                    </div>
+                    <div class="project-badge">{{ current_project.name }}</div>
                 </div>
-            </div>
+            </header>
 
-            <section id="overview">
-                <div class="grid kpi-grid">
+            <section class="app-page active" data-page="dashboard">
+                <div class="dashboard-hero">
+                    <div class="hero-copy">
+                        <span data-i18n="hero_eyebrow">NuroAgro control center</span>
+                        <h3 data-i18n="hero_title">One view for crop health, climate, and farm automation.</h3>
+                        <p data-i18n="hero_copy">Monitor the latest conditions, review AI guidance, and act on the most important changes across your farm.</p>
+                    </div>
+                    <div class="hero-status">
+                        <div class="hero-stat">
+                            <span data-i18n="hero_weather">Weather</span>
+                            <strong>
+                                {% if realtime_weather %}
+                                    {{ realtime_weather.current.temperature }}&deg;C
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <div class="hero-stat">
+                            <span data-i18n="hero_sensor_score">Sensor score</span>
+                            <strong>{{ sensor_analysis.health_score if sensor_analysis else '--' }}</strong>
+                        </div>
+                        <div class="hero-stat">
+                            <span data-i18n="hero_project">Current project</span>
+                            <strong>{{ current_project.name }}</strong>
+                        </div>
+                        <div class="hero-stat">
+                            <span data-i18n="hero_next_check">Next analysis</span>
+                            <strong>{{ sensor_analysis.next_analysis_at[:16] if sensor_analysis else '--' }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid metrics">
                     <div class="metric">
-                        <span>My projects</span>
+                        <span class="metric-label" data-i18n="metric_projects">Projects</span>
                         <strong>{{ user_metrics.project_count }}</strong>
+                        <small data-i18n="metric_projects_sub">Farm modules</small>
                     </div>
                     <div class="metric">
-                        <span>Current area</span>
+                        <span class="metric-label" data-i18n="metric_area">Current area</span>
                         <strong>{{ user_metrics.area }}</strong>
+                        <small data-i18n="metric_area_sub">Square feet</small>
                     </div>
                     <div class="metric">
-                        <span>Vertical floors</span>
+                        <span class="metric-label" data-i18n="metric_floors">Vertical floors</span>
                         <strong>{{ user_metrics.floors }}</strong>
+                        <small data-i18n="metric_floors_sub">Maximum four</small>
                     </div>
                     <div class="metric">
-                        <span>Disease scans</span>
+                        <span class="metric-label" data-i18n="metric_scans">Disease scans</span>
                         <strong>{{ user_metrics.disease_count }}</strong>
+                        <small data-i18n="metric_scans_sub">Stored analyses</small>
                     </div>
                     <div class="metric">
-                        <span>Account</span>
+                        <span class="metric-label" data-i18n="metric_account">Account</span>
                         <strong>{{ user_metrics.status }}</strong>
-                    </div>
-                </div>
-            </section>
-
-            <section class="grid two-col">
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">AI site analysis</span>
-                            <h3>{{ project_analysis.recommendation }}</h3>
-                            <p>{{ project_analysis.reason }}</p>
-                        </div>
-                    </div>
-                    {% if project_analysis.agent_report %}
-                        <div class="summary">
-                            <strong>{{ project_analysis.agent_source }}</strong>
-                            <p>{{ project_analysis.agent_report }}</p>
-                        </div>
-                    {% endif %}
-                    <div class="score-row">
-                        <div>
-                            <div class="score-label">
-                                <span>Vertical farming fit</span>
-                                <strong>{{ project_analysis.vertical_score }}%</strong>
-                            </div>
-                            <div class="bar-track">
-                                <div class="bar" style="width: {{ project_analysis.vertical_score }}%;"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="score-label">
-                                <span>Traditional farming fit</span>
-                                <strong>{{ project_analysis.traditional_score }}%</strong>
-                            </div>
-                            <div class="bar-track">
-                                <div class="bar alt" style="width: {{ project_analysis.traditional_score }}%;"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <h4>Suggested plants</h4>
-                    <div class="chip-row">
-                        {% for plant in project_analysis.plants %}
-                            <span class="chip">{{ plant }}</span>
-                        {% endfor %}
-                    </div>
-                    <h4>Vertical system options</h4>
-                    <div class="chip-row">
-                        {% for system in project_analysis.systems %}
-                            <span class="chip blue">{{ system }}</span>
-                        {% endfor %}
-                    </div>
-                    <h4>Mini fish for aquaponic and hybrid modules</h4>
-                    <div class="chip-row">
-                        {% for fish in project_analysis.fish %}
-                            <span class="chip amber">{{ fish }}</span>
-                        {% endfor %}
+                        <small>{{ user.email }}</small>
                     </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">AI recommendations</span>
-                            <h3>Next best actions</h3>
+                <div class="grid two-column">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="dashboard_fit">Farm-fit analysis</span>
+                                <h3>{{ project_analysis.recommendation }}</h3>
+                                <p>{{ project_analysis.reason }}</p>
+                            </div>
                         </div>
-                    </div>
-                    <ul class="alert-list">
-                        {% for item in recommendations %}
-                            <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </section>
 
-            <section id="setup" class="panel">
-                <div class="panel-header">
-                    <div>
-                        <span class="panel-kicker">User setup</span>
-                        <h3>Create a project module</h3>
-                        <p>Maximum vertical depth is 4 floors. Your browser will capture the project location automatically.</p>
-                    </div>
-                </div>
-                {% if setup_result %}
-                    <div class="summary">
-                        <strong>{{ setup_result.agent_source }}</strong>
-                        <p>{{ setup_result.agent_report }}</p>
-                    </div>
-                {% endif %}
-                {% if error %}
-                    <p class="error">{{ error }}</p>
-                {% endif %}
-                <form method="post" id="project-form">
-                    <input type="hidden" name="form_type" value="project_setup">
-                    <div class="form-grid">
-                        <div>
-                            <label for="project_name">Project name</label>
-                            <input id="project_name" name="project_name" required>
+                        {% if project_analysis.agent_report %}
+                            <div class="agent-report">
+                                <strong>{{ project_analysis.agent_source }}</strong>
+                                {{ project_analysis.agent_report }}
+                            </div>
+                        {% endif %}
+
+                        <div class="score-list">
+                            <div>
+                                <div class="score-heading">
+                                    <span>Vertical farming fit</span>
+                                    <strong>{{ project_analysis.vertical_score }}%</strong>
+                                </div>
+                                <div class="progress"><span style="width: {{ project_analysis.vertical_score }}%;"></span></div>
+                            </div>
+                            <div>
+                                <div class="score-heading">
+                                    <span>Traditional farming fit</span>
+                                    <strong>{{ project_analysis.traditional_score }}%</strong>
+                                </div>
+                                <div class="progress"><span class="cyan" style="width: {{ project_analysis.traditional_score }}%;"></span></div>
+                            </div>
                         </div>
-                        <div>
-                            <label for="area">Area or land size sq ft</label>
-                            <input id="area" name="area" type="number" min="1" step="any" required>
-                        </div>
-                        <div>
-                            <label for="floors">Vertical floors</label>
-                            <select id="floors" name="floors">
-                                {% for floor in [1, 2, 3, 4] %}
-                                    <option value="{{ floor }}" {% if current_project.floors == floor %}selected{% endif %}>{{ floor }}</option>
+
+                        {% if project_analysis.plants %}
+                            <h4 class="subheading" data-i18n="recommended_plants">Recommended plants</h4>
+                            <div class="chips">
+                                {% for plant in project_analysis.plants %}
+                                    <span class="chip">{{ plant }}</span>
                                 {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="goal">Farm goal</label>
-                            <select id="goal" name="goal">
-                                <option>hybrid vertical farming</option>
-                                <option>hydroponic vertical farming</option>
-                                <option>aquaponic vertical farming</option>
-                                <option>aeroponic vertical farming</option>
-                                <option>traditional farming</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="lat">Latitude</label>
-                            <input id="lat" name="lat" type="number" step="any" readonly required>
-                        </div>
-                        <div>
-                            <label for="lng">Longitude</label>
-                            <input id="lng" name="lng" type="number" step="any" readonly required>
-                        </div>
-                    </div>
-                    <div class="button-row">
-                        <button type="button" class="secondary" id="detect-location">Detect location</button>
-                        <button type="submit">Analyze and save project</button>
-                    </div>
-                    <p id="location-status" style="color: var(--muted);">Waiting for location permission.</p>
-                </form>
-            </section>
+                            </div>
+                        {% endif %}
 
-            <section id="sensors" class="panel">
-                <div class="panel-header">
-                    <div>
-                        <span class="panel-kicker">ESP-WROOM-32 telemetry</span>
-                        <h3>Live sensor dashboard</h3>
-                        <p>Latest packet: {{ latest_sensor.timestamp }}</p>
-                    </div>
-                    <span class="status stable">API /api/sensors</span>
-                </div>
-                <div class="grid sensor-grid">
-                    {% for card in sensor_cards %}
-                        <div class="sensor-card {{ card.status }}">
-                            <span>{{ card.label }}</span>
-                            <strong>{{ card.value }} {{ card.unit }}</strong>
-                            <small>Ideal: {{ card.ideal }}</small>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section id="automation" class="grid two-col">
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">Automation control</span>
-                            <h3>Pumps, relay, camera, and blue UV lights</h3>
-                        </div>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Device</th>
-                                    <th>Mode</th>
-                                    <th>AI action</th>
-                                    <th>Manual control</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for name, mode in controls.items() %}
-                                    <tr>
-                                        <td>{{ name.replace('_', ' ').title() }}</td>
-                                        <td><span class="status stable">{{ mode }}</span></td>
-                                        <td>{{ automation.get(name, 'hold') }}</td>
-                                        <td>
-                                            <form method="post">
-                                                <input type="hidden" name="form_type" value="control_update">
-                                                <input type="hidden" name="control_name" value="{{ name }}">
-                                                <select name="control_value">
-                                                    <option value="auto">auto</option>
-                                                    <option value="on">on</option>
-                                                    <option value="off">off</option>
-                                                    <option value="active">active</option>
-                                                </select>
-                                                <div class="button-row">
-                                                    <button class="secondary" type="submit">Set</button>
-                                                </div>
-                                            </form>
-                                        </td>
-                                    </tr>
+                        {% if project_analysis.systems %}
+                            <h4 class="subheading" data-i18n="suitable_systems">Suitable systems</h4>
+                            <div class="chips">
+                                {% for system in project_analysis.systems %}
+                                    <span class="chip blue">{{ system }}</span>
                                 {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </div>
+                        {% endif %}
 
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">Alerts</span>
-                            <h3>Sensor-triggered signals</h3>
-                        </div>
-                    </div>
-                    <ul class="alert-list">
-                        {% for alert in alerts %}
-                            <li>{{ alert }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </section>
+                        {% if project_analysis.fish %}
+                            <h4 class="subheading" data-i18n="aquaponic_fish">Aquaponic fish</h4>
+                            <div class="chips">
+                                {% for fish in project_analysis.fish %}
+                                    <span class="chip amber">{{ fish }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </article>
 
-            <section id="disease" class="grid two-col">
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">YOLO disease detection</span>
-                            <h3>ESP camera and manual image check</h3>
-                            <p>Images are analyzed by the integrated YOLO model and stored in disease history.</p>
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="recommendations">Recommendations</span>
+                                <h3 data-i18n="priority_actions">Priority actions</h3>
+                            </div>
                         </div>
-                    </div>
-                    {% if error %}
-                        <p class="error">{{ error }}</p>
-                    {% endif %}
-                    <form method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="form_type" value="disease">
-                        <label for="file">Plant image</label>
-                        <input id="file" type="file" name="file" accept="image/*">
-                        <div class="button-row">
-                            <button type="submit">Analyze disease</button>
-                        </div>
-                    </form>
-
-                    {% if disease_result %}
-                        <h4>Detection output</h4>
-                        <img src="{{ disease_result.image }}" alt="Disease detection output" class="output-image">
-                        <div class="chip-row" style="margin-top: 12px;">
-                            {% for disease, count in disease_result.summary.items() %}
-                                <span class="chip amber">{{ disease }}: {{ count }}</span>
-                            {% endfor %}
-                        </div>
-                        <ul class="alert-list" style="margin-top: 12px;">
-                            {% for action in disease_result.recommendations %}
-                                <li>{{ action }}</li>
+                        <ul class="action-list">
+                            {% for item in recommendations %}
+                                <li>{{ item }}</li>
                             {% endfor %}
                         </ul>
-                    {% endif %}
+                    </article>
                 </div>
 
-                <div class="panel">
+                <article class="panel">
                     <div class="panel-header">
                         <div>
-                            <span class="panel-kicker">Camera module</span>
-                            <h3>Latest farm image</h3>
+                            <span class="eyebrow" data-i18n="weather_intelligence">Location weather intelligence</span>
+                            <h3 data-i18n="weather_realtime_title">Realtime conditions and model prediction</h3>
+                            <p data-i18n="weather_realtime_copy">Current weather is location-based; daily snapshots and predictions are archived automatically.</p>
                         </div>
-                    </div>
-                    <img src="{{ sample_camera_image }}" alt="ESP camera sample" class="camera-frame">
-                    <h4>Disease history</h4>
-                    <div class="timeline">
-                        {% if disease_history %}
-                            {% for item in disease_history %}
-                                <div class="timeline-item">
-                                    <strong>{{ item.timestamp }}</strong>
-                                    {% for disease, count in item.summary.items() %}
-                                        <span class="chip">{{ disease }}: {{ count }}</span>
-                                    {% endfor %}
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="timeline-item">No disease records stored yet.</div>
+                        {% if supabase_enabled %}
+                            <span class="status stable">Supabase configured</span>
                         {% endif %}
                     </div>
-                </div>
-            </section>
 
-            <section id="weather" class="panel">
-                <div class="panel-header">
-                    <div>
-                        <span class="panel-kicker">Transformer weather model</span>
-                        <h3>Automatic 30-day forecast</h3>
-                        <p>The trained .keras model runs automatically and predicts weather parameters without manual input.</p>
-                    </div>
-                </div>
-                {% if weather_error %}
-                    <p class="error">{{ weather_error }}</p>
-                {% endif %}
-                {% if weather_forecast %}
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Day</th>
-                                    {% for field_name, label, unit in weather_features %}
-                                        <th>{{ label }} ({{ unit }})</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for forecast_day in weather_forecast %}
-                                    <tr>
-                                        <td>Day {{ forecast_day.day }}</td>
-                                        {% for item in forecast_day.measurements %}
-                                            <td>{{ item.value }}</td>
-                                        {% endfor %}
-                                    </tr>
+                    {% if weather_error %}
+                        <div class="message error">{{ weather_error }}</div>
+                    {% endif %}
+
+                    {% if realtime_weather %}
+                        <div class="grid weather-layout">
+                            <div class="weather-current">
+                                <div class="weather-icon">
+                                    <i data-lucide="cloud-sun"></i>
+                                </div>
+                                <div class="weather-temperature">{{ realtime_weather.current.temperature }}°C</div>
+                                <div class="weather-condition">{{ realtime_weather.current.condition }}</div>
+                                <div class="weather-meta">
+                                    <div>
+                                        <span>Humidity</span>
+                                        <strong>{{ realtime_weather.current.humidity }}%</strong>
+                                    </div>
+                                    <div>
+                                        <span>Feels like</span>
+                                        <strong>{{ realtime_weather.current.apparent_temperature }}°C</strong>
+                                    </div>
+                                    <div>
+                                        <span>Wind</span>
+                                        <strong>{{ realtime_weather.current.wind_speed }} km/h</strong>
+                                    </div>
+                                    <div>
+                                        <span>Pressure</span>
+                                        <strong>{{ realtime_weather.current.pressure }} hPa</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="prediction-panel">
+                                <div class="prediction-header">
+                                    <div>
+                                        <span class="eyebrow">Transformer next-day prediction</span>
+                                        <h4>
+                                            {% if next_day_prediction %}
+                                                {{ next_day_prediction.target_at }}
+                                            {% else %}
+                                                Prediction unavailable
+                                            {% endif %}
+                                        </h4>
+                                    </div>
+                                    <div class="weather-icon">
+                                        <i data-lucide="brain-circuit"></i>
+                                    </div>
+                                </div>
+
+                                {% if next_day_prediction %}
+                                    <div class="grid prediction-values">
+                                        <div class="weather-value">
+                                            <span>Maximum</span>
+                                            <strong>{{ next_day_prediction.prediction.max_temp }}°C</strong>
+                                        </div>
+                                        <div class="weather-value">
+                                            <span>Minimum</span>
+                                            <strong>{{ next_day_prediction.prediction.min_temp }}°C</strong>
+                                        </div>
+                                        <div class="weather-value">
+                                            <span>Average</span>
+                                            <strong>{{ next_day_prediction.prediction.avg_temp }}°C</strong>
+                                        </div>
+                                        <div class="weather-value">
+                                            <span>Humidity</span>
+                                            <strong>{{ next_day_prediction.prediction.humidity }}%</strong>
+                                        </div>
+                                        <div class="weather-value">
+                                            <span>Pressure</span>
+                                            <strong>{{ next_day_prediction.prediction.pressure }} hPa</strong>
+                                        </div>
+                                        <div class="weather-value">
+                                            <span>Rainfall</span>
+                                            <strong>{{ next_day_prediction.prediction.rainfall }} mm</strong>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <h4 class="subheading" data-i18n="daily_forecast">Daily location forecast</h4>
+                        <div class="forecast-strip">
+                            {% for day in realtime_weather.forecast_daily %}
+                                <div class="forecast-day">
+                                    <time>{{ day.date }}</time>
+                                    <strong>{{ day.max_temp }}° / {{ day.min_temp }}°</strong>
+                                    <span>{{ day.condition }}</span>
+                                    <span>{{ day.rainfall }} mm rain</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if seasonal_analysis %}
+                        <div class="seasonal-plan">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="seasonal_eyebrow">75-day crop and floor analysis</span>
+                                    <h3 data-i18n="seasonal_title">Location planting plan</h3>
+                                    <p>
+                                        Generated {{ seasonal_analysis.generated_at }} ·
+                                        Next refresh {{ seasonal_analysis.next_analysis_at }}
+                                    </p>
+                                </div>
+                                <span class="status stable">{{ seasonal_analysis.source }}</span>
+                            </div>
+                            <div class="agent-report">{{ seasonal_analysis.report }}</div>
+                            <h4 class="subheading" data-i18n="preferred_plants">Preferred plants</h4>
+                            <div class="chips">
+                                {% for plant in seasonal_analysis.preferred_plants %}
+                                    <span class="chip">{{ plant }}</span>
                                 {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% endif %}
+                            </div>
+                            <div class="grid floor-grid">
+                                {% for floor in seasonal_analysis.floor_recommendations %}
+                                    <div class="floor-card">
+                                        <span>{{ floor.label }}</span>
+                                        <strong>Floor {{ floor.floor }}</strong>
+                                        <div class="chips" style="margin-top: 8px;">
+                                            {% for plant in floor.plants %}
+                                                <span class="chip amber">{{ plant }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        <p>{{ floor.reason }}</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if weather_forecast %}
+                        <details class="model-outlook">
+                            <summary data-i18n="full_outlook">View complete 30-day transformer outlook</summary>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Day</th>
+                                            {% for field_name, label, unit in weather_features %}
+                                                <th>{{ label }} ({{ unit }})</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for forecast_day in weather_forecast %}
+                                            <tr>
+                                                <td>Day {{ forecast_day.day }}</td>
+                                                {% for item in forecast_day.measurements %}
+                                                    <td>{{ item.value }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    {% endif %}
+                </article>
             </section>
 
-            <section id="hardware" class="grid two-col">
-                <div class="panel">
+            <section class="app-page" data-page="project">
+                <article class="panel">
                     <div class="panel-header">
                         <div>
-                            <span class="panel-kicker">Hardware stack</span>
-                            <h3>Supported modules</h3>
+                            <span class="eyebrow" data-i18n="project_config">Project configuration</span>
+                            <h3 data-i18n="project_create">Create a farm project</h3>
+                            <p data-i18n="project_copy">Location is captured from this device. Vertical projects support up to four floors.</p>
                         </div>
                     </div>
-                    <div class="chip-row">
-                        {% for component in hardware_components %}
-                            <span class="chip">{{ component }}</span>
+
+                    {% if setup_result %}
+                        <div class="message success">{{ setup_result.recommendation }}</div>
+                        {% if setup_result.agent_report %}
+                            <div class="agent-report">
+                                <strong>{{ setup_result.agent_source }}</strong>
+                                {{ setup_result.agent_report }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if error %}
+                        <div class="message error">{{ error }}</div>
+                    {% endif %}
+
+                    <form method="post" action="{{ url_for('index') }}#project" id="project-form">
+                        <input type="hidden" name="form_type" value="project_setup">
+                        <div class="form-grid">
+                            <div>
+                                <label for="project_name" data-i18n="project_name">Project name</label>
+                                <input id="project_name" name="project_name" required>
+                            </div>
+                            <div>
+                                <label for="area" data-i18n="farm_area">Farm area (sq ft)</label>
+                                <input id="area" name="area" type="number" min="1" step="any" required>
+                            </div>
+                            <div>
+                                <label for="goal" data-i18n="farm_goal">Farm goal</label>
+                                <select id="goal" name="goal">
+                                    <option>hybrid vertical farming</option>
+                                    <option>hydroponic vertical farming</option>
+                                    <option>aquaponic vertical farming</option>
+                                    <option>aeroponic vertical farming</option>
+                                    <option>traditional farming</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="floors" data-i18n="vertical_floors">Vertical floors</label>
+                                <select id="floors" name="floors">
+                                    {% for floor in [1, 2, 3, 4] %}
+                                        <option value="{{ floor }}">{{ floor }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="lat">Latitude</label>
+                                <input id="lat" name="lat" type="number" step="any" readonly required>
+                            </div>
+                            <div>
+                                <label for="lng">Longitude</label>
+                                <input id="lng" name="lng" type="number" step="any" readonly required>
+                            </div>
+                        </div>
+                        <div class="button-row">
+                            <button class="button secondary" type="button" id="detect-location">
+                                <i data-lucide="map-pin"></i>
+                                <span data-i18n="detect_location">Detect location</span>
+                            </button>
+                            <button class="button" type="submit">
+                                <i data-lucide="sparkles"></i>
+                                <span data-i18n="analyze_save">Analyze and save</span>
+                            </button>
+                        </div>
+                        <p class="location-status" id="location-status">Waiting for location permission.</p>
+                    </form>
+                </article>
+
+                {% if projects %}
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="project_history">Project history</span>
+                                <h3 data-i18n="your_projects">Your farm projects</h3>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Project</th>
+                                        <th>Area</th>
+                                        <th>Goal</th>
+                                        <th>Floors</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in projects|reverse %}
+                                        <tr>
+                                            <td>{{ project.name }}</td>
+                                            <td>{{ project.area }} sq ft</td>
+                                            <td>{{ project.goal }}</td>
+                                            <td>{{ project.floors }}</td>
+                                            <td>{{ project.lat }}, {{ project.lng }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                {% endif %}
+            </section>
+
+            <section class="app-page" data-page="sensors">
+                <article class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow" data-i18n="telemetry">ESP-WROOM-32 telemetry</span>
+                            <h3 data-i18n="live_sensors">Live sensor readings</h3>
+                            <p>Latest packet: {{ latest_sensor.timestamp }}</p>
+                        </div>
+                        <span class="status stable">Connected</span>
+                    </div>
+                    <div class="grid sensor-grid">
+                        {% for card in sensor_cards %}
+                            <div class="sensor-card {{ card.status }}">
+                                <span class="sensor-label">{{ card.label }}</span>
+                                <strong>{{ card.value }} {{ card.unit }}</strong>
+                                <small>Ideal: {{ card.ideal }}</small>
+                            </div>
                         {% endfor %}
                     </div>
+                </article>
+
+                <div class="grid two-column">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="automation">Automation</span>
+                                <h3 data-i18n="device_controls">Device controls</h3>
+                            </div>
+                        </div>
+                        <div class="table-wrap automation-table-wrap">
+                            <table class="automation-table">
+                                <thead>
+                                    <tr>
+                                        <th>Device</th>
+                                        <th>Mode</th>
+                                        <th>AI action</th>
+                                        <th>Manual setting</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for name, mode in controls.items() %}
+                                        <tr>
+                                            <td data-label="Device">{{ name.replace('_', ' ').title() }}</td>
+                                            <td data-label="Mode"><span class="status stable">{{ mode }}</span></td>
+                                            <td data-label="AI action">{{ automation.get(name, 'hold') }}</td>
+                                            <td data-label="Manual setting">
+                                                <form method="post" action="{{ url_for('index') }}#sensors" class="control-buttons">
+                                                    <input type="hidden" name="form_type" value="control_update">
+                                                    <input type="hidden" name="control_name" value="{{ name }}">
+                                                    <button
+                                                        class="control-button {% if mode == 'auto' %}active{% endif %}"
+                                                        type="submit"
+                                                        name="control_value"
+                                                        value="auto"
+                                                        data-i18n="auto"
+                                                    >Auto</button>
+                                                    <button
+                                                        class="control-button {% if mode in ['on', 'active'] %}active{% endif %}"
+                                                        type="submit"
+                                                        name="control_value"
+                                                        value="on"
+                                                        data-i18n="on"
+                                                    >On</button>
+                                                    <button
+                                                        class="control-button {% if mode == 'off' %}active{% endif %}"
+                                                        type="submit"
+                                                        name="control_value"
+                                                        value="off"
+                                                        data-i18n="off"
+                                                    >Off</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="two_hour_intelligence">Two-hour intelligence</span>
+                                <h3 data-i18n="sensor_feedback">Sensor feedback</h3>
+                            </div>
+                        </div>
+                        {% if sensor_analysis %}
+                            <div class="analysis-score">
+                                <div class="score-ring" style="--score: {{ sensor_analysis.health_score }};">
+                                    <strong>{{ sensor_analysis.health_score }}</strong>
+                                </div>
+                                <div class="analysis-meta">
+                                    <strong>{{ sensor_analysis.risk_level|title }} condition</strong>
+                                    <span>{{ sensor_analysis.model_name }}</span>
+                                    <span>{{ sensor_analysis.sample_count }} samples · next run {{ sensor_analysis.next_analysis_at }}</span>
+                                </div>
+                            </div>
+                            <ul class="action-list">
+                                {% for feedback in sensor_analysis.feedback %}
+                                    <li>{{ feedback }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="message success">Waiting for sensor packets before the first two-hour analysis.</div>
+                        {% endif %}
+
+                        <h4 class="subheading" data-i18n="immediate_alerts">Immediate alerts</h4>
+                        <ul class="action-list">
+                            {% for alert in alerts %}
+                                <li>{{ alert }}</li>
+                            {% endfor %}
+                        </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section class="app-page" data-page="disease">
+                <div class="grid two-column">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="dual_yolo">Dual YOLO detection</span>
+                                <h3 data-i18n="analyze_plant">Analyze a plant image</h3>
+                                <p data-i18n="dual_yolo_copy">Rice and multi-plant models run together on every image.</p>
+                            </div>
+                        </div>
+
+                        {% if error %}
+                            <div class="message error">{{ error }}</div>
+                        {% endif %}
+
+                        <form method="post" action="{{ url_for('index') }}#disease" enctype="multipart/form-data">
+                            <input type="hidden" name="form_type" value="disease">
+                            <div class="upload-zone">
+                                <label for="file" data-i18n="plant_image">Plant image</label>
+                                <input id="file" type="file" name="file" accept="image/*" required>
+                            </div>
+                            <div class="button-row">
+                                <button class="button" type="submit">
+                                    <i data-lucide="scan-search"></i>
+                                    <span data-i18n="analyze_disease">Analyze disease</span>
+                                </button>
+                            </div>
+                        </form>
+
+                        {% if disease_result %}
+                            <h4 class="subheading" data-i18n="detection_output">Detection output</h4>
+                            <img src="{{ disease_result.image }}" alt="Disease detection output" class="output-image">
+                            <div class="chips" style="margin-top: 12px;">
+                                {% for disease, count in disease_result.summary.items() %}
+                                    <span class="chip amber">{{ disease }}: {{ count }}</span>
+                                {% endfor %}
+                            </div>
+                            <ul class="action-list" style="margin-top: 12px;">
+                                {% for action in disease_result.recommendations %}
+                                    <li>{{ action }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="esp_camera">ESP camera</span>
+                                <h3 data-i18n="latest_camera">Latest camera image</h3>
+                            </div>
+                        </div>
+                        <img src="{{ sample_camera_image }}" alt="Latest ESP camera capture" class="camera-frame">
+
+                        <h4 class="subheading" data-i18n="recent_scans">Recent scans</h4>
+                        <div class="timeline">
+                            {% for item in disease_history %}
+                                <div class="timeline-item">
+                                    <time>{{ item.timestamp }}</time>
+                                    <div class="chips">
+                                        {% for disease, count in item.summary.items() %}
+                                            <span class="chip">{{ disease }}: {{ count }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="timeline-item">No disease scans stored yet.</div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="app-page" data-page="history">
+                <div class="history-toolbar">
+                    <div>
+                        <span class="eyebrow" data-i18n="history_eyebrow">Complete farm archive</span>
+                        <h3 style="margin: 4px 0 0;" data-i18n="history_title">History</h3>
+                        <p style="margin: 6px 0 0; color: var(--muted);" data-i18n="history_subtitle">Review projects, disease images, sensors, weather, analyses, and account activity.</p>
+                    </div>
+                    <div class="history-filters">
+                        <button class="history-filter active" type="button" data-history-filter="all">
+                            <span data-i18n="filter_all">All</span> {{ history_counts.all }}
+                        </button>
+                        <button class="history-filter" type="button" data-history-filter="diseases">
+                            <span data-i18n="filter_disease">Disease</span> {{ history_counts.diseases }}
+                        </button>
+                        <button class="history-filter" type="button" data-history-filter="sensors">
+                            <span data-i18n="filter_sensors">Sensors</span> {{ history_counts.sensors }}
+                        </button>
+                        <button class="history-filter" type="button" data-history-filter="weather">
+                            <span data-i18n="filter_weather">Weather</span> {{ history_counts.weather }}
+                        </button>
+                        <button class="history-filter" type="button" data-history-filter="analyses">
+                            <span data-i18n="filter_analyses">Analyses</span> {{ history_counts.analyses }}
+                        </button>
+                        <button class="history-filter" type="button" data-history-filter="activities">
+                            <span data-i18n="filter_activity">Activity</span> {{ history_counts.activities }}
+                        </button>
+                    </div>
                 </div>
 
-                <div class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <span class="panel-kicker">ESP32 payload</span>
-                            <h3>Sensor post format</h3>
+                <section class="history-group" data-history-category="diseases">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="history_disease_eyebrow">Image archive</span>
+                                <h3 data-i18n="history_disease_title">Disease detection history</h3>
+                            </div>
                         </div>
+                        <div class="disease-history-grid">
+                            {% for item in history.diseases %}
+                                <article class="disease-history-card">
+                                    <img src="{{ item.image }}" alt="Stored disease detection result" loading="lazy">
+                                    <div class="disease-history-body">
+                                        <time>{{ item.timestamp }}</time>
+                                        <h4>{{ item.detections|length }} detections</h4>
+                                        <div class="chips">
+                                            {% for disease, count in item.summary.items() %}
+                                                <span class="chip amber">{{ disease }}: {{ count }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% if item.detections %}
+                                            <p style="margin: 10px 0 0; color: var(--muted); font-size: 12px;">
+                                                {% for detection in item.detections %}
+                                                    {{ detection.model_label }} · {{ detection.class_name }} · {{ (detection.confidence * 100)|round(1) }}%{% if not loop.last %}<br>{% endif %}
+                                                {% endfor %}
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                </article>
+                            {% else %}
+                                <div class="history-empty" data-i18n="history_no_disease">No disease images stored yet.</div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </section>
+
+                <section class="history-group" data-history-category="sensors">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow" data-i18n="history_sensor_eyebrow">Telemetry archive</span>
+                                <h3 data-i18n="history_sensor_title">All sensor packets</h3>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Air temp</th>
+                                        <th>Humidity</th>
+                                        <th>Soil</th>
+                                        <th>Water</th>
+                                        <th>Lux</th>
+                                        <th>MQ-135</th>
+                                        <th>Motion</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in history.sensors %}
+                                        <tr>
+                                            <td>{{ item.timestamp }}</td>
+                                            <td>{{ item.dht11_temp }}&deg;C</td>
+                                            <td>{{ item.dht11_humidity }}%</td>
+                                            <td>{{ item.soil_moisture }}%</td>
+                                            <td>{{ item.water_level }}%</td>
+                                            <td>{{ item.lux }}</td>
+                                            <td>{{ item.mq135 }}</td>
+                                            <td>{{ item.motion }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr><td colspan="8" data-i18n="history_no_sensors">No sensor packets stored yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="history-group" data-history-category="weather">
+                    <div class="grid two-column">
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_weather_eyebrow">Observed conditions</span>
+                                    <h3 data-i18n="history_weather_title">Daily weather snapshots</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.weather %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.observed_at }}</time>
+                                        <div class="chips">
+                                            <span class="chip">{{ item.weather_date }}</span>
+                                            <span class="chip">{{ item.current_weather.temperature }}&deg;C</span>
+                                            <span class="chip blue">{{ item.current_weather.condition }}</span>
+                                            <span class="chip amber">{{ item.current_weather.humidity }}%</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_weather">No weather snapshots stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
+
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_prediction_eyebrow">Transformer archive</span>
+                                    <h3 data-i18n="history_prediction_title">Weather predictions</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.predictions %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.predicted_at }} → {{ item.target_at }}</time>
+                                        <div class="chips">
+                                            <span class="chip">{{ item.prediction.avg_temp }}&deg;C</span>
+                                            <span class="chip blue">{{ item.prediction.humidity }}%</span>
+                                            <span class="chip amber">{{ item.prediction.rainfall }} mm</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_predictions">No weather predictions stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
                     </div>
-                    <pre>{
-  "project_id": "{{ current_project.id }}",
-  "dht11_temp": 27.4,
-  "dht11_humidity": 68,
-  "dht7_temp": 23.1,
-  "mq5": 148,
-  "mq7": 21,
-  "mq135": 412,
-  "lux": 9200,
-  "rain_drop": 0,
-  "soil_moisture": 42,
-  "water_level": 74,
-  "motion": 0
-}</pre>
-                </div>
+                </section>
+
+                <section class="history-group" data-history-category="analyses">
+                    <div class="grid two-column">
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_sensor_analysis_eyebrow">Two-hour model</span>
+                                    <h3 data-i18n="history_sensor_analysis_title">Sensor analyses</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.sensor_analyses %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.generated_at }}</time>
+                                        <div class="chips">
+                                            <span class="chip">{{ item.health_score }}/100</span>
+                                            <span class="chip {% if item.risk_level != 'stable' %}amber{% endif %}">{{ item.risk_level }}</span>
+                                            <span class="chip blue">{{ item.sample_count }} samples</span>
+                                        </div>
+                                        <p style="margin: 9px 0 0; color: var(--muted); font-size: 12px;">
+                                            {{ item.feedback|join(' ') }}
+                                        </p>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_sensor_analysis">No sensor analyses stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
+
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_seasonal_eyebrow">75-day intelligence</span>
+                                    <h3 data-i18n="history_seasonal_title">Crop and floor plans</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.seasonal %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.generated_at }}</time>
+                                        <div class="chips">
+                                            {% for plant in item.preferred_plants %}
+                                                <span class="chip">{{ plant }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        <p style="margin: 9px 0 0; color: var(--muted); font-size: 12px;">{{ item.report }}</p>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_seasonal">No seasonal plans stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="history-group" data-history-category="activities">
+                    <div class="grid two-column">
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_project_eyebrow">Farm modules</span>
+                                    <h3 data-i18n="history_project_title">Project history</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.projects %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.created_at }}</time>
+                                        <strong>{{ item.name }}</strong>
+                                        <div class="chips" style="margin-top: 8px;">
+                                            <span class="chip">{{ item.area }} sq ft</span>
+                                            <span class="chip blue">{{ item.floors }} floors</span>
+                                            <span class="chip amber">{{ item.goal }}</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_projects">No projects stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
+
+                        <article class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <span class="eyebrow" data-i18n="history_activity_eyebrow">Account log</span>
+                                    <h3 data-i18n="history_activity_title">Activity history</h3>
+                                </div>
+                            </div>
+                            <div class="timeline">
+                                {% for item in history.activities %}
+                                    <div class="timeline-item">
+                                        <time>{{ item.timestamp }}</time>
+                                        <strong>{{ item.action.replace('_', ' ')|title }}</strong>
+                                        <p style="margin: 5px 0 0; color: var(--muted); font-size: 12px;">{{ item.details }}</p>
+                                    </div>
+                                {% else %}
+                                    <div class="history-empty" data-i18n="history_no_activity">No account activity stored yet.</div>
+                                {% endfor %}
+                            </div>
+                        </article>
+                    </div>
+                </section>
             </section>
         </main>
     </div>
+
+    <nav class="mobile-nav" aria-label="Mobile user navigation">
+        <button class="nav-button active" type="button" data-page-target="dashboard">
+            <i data-lucide="layout-dashboard"></i>
+            <span data-i18n="nav_dashboard">Dashboard</span>
+        </button>
+        <button class="nav-button" type="button" data-page-target="project">
+            <i data-lucide="sprout"></i>
+            <span data-i18n="nav_project_short">Project</span>
+        </button>
+        <button class="nav-button" type="button" data-page-target="sensors">
+            <i data-lucide="activity"></i>
+            <span data-i18n="nav_sensors">Sensors</span>
+        </button>
+        <button class="nav-button" type="button" data-page-target="disease">
+            <i data-lucide="scan-search"></i>
+            <span data-i18n="nav_disease_short">Disease</span>
+        </button>
+        <button class="nav-button" type="button" data-page-target="history">
+            <i data-lucide="history"></i>
+            <span data-i18n="nav_history">History</span>
+        </button>
+    </nav>
+
     <script>
+        const translations = {
+            en: {
+                nav_dashboard: "Dashboard",
+                nav_project: "Project Setup",
+                nav_project_short: "Project",
+                nav_sensors: "Sensors",
+                nav_disease: "Disease AI",
+                nav_disease_short: "Disease",
+                nav_history: "History",
+                logout: "Logout",
+                page_dashboard: "Dashboard",
+                subtitle_dashboard: "Farm performance, recommendations, and weather forecast.",
+                page_project: "Project Setup",
+                subtitle_project: "Create and analyze a location-aware farming project.",
+                page_sensors: "Sensors",
+                subtitle_sensors: "Live telemetry, automation controls, and operational alerts.",
+                page_disease: "Disease AI",
+                subtitle_disease: "Analyze plant images with the rice and multi-plant YOLO models.",
+                page_history: "History",
+                subtitle_history: "Review every stored farm event, image, reading, and analysis.",
+                hero_eyebrow: "NuroAgro control center",
+                hero_title: "One view for crop health, climate, and farm automation.",
+                hero_copy: "Monitor the latest conditions, review AI guidance, and act on the most important changes across your farm.",
+                hero_weather: "Weather",
+                hero_sensor_score: "Sensor score",
+                hero_project: "Current project",
+                hero_next_check: "Next analysis",
+                metric_projects: "Projects",
+                metric_projects_sub: "Farm modules",
+                metric_area: "Current area",
+                metric_area_sub: "Square feet",
+                metric_floors: "Vertical floors",
+                metric_floors_sub: "Maximum four",
+                metric_scans: "Disease scans",
+                metric_scans_sub: "Stored analyses",
+                metric_account: "Account",
+                dashboard_fit: "Farm-fit analysis",
+                recommended_plants: "Recommended plants",
+                suitable_systems: "Suitable systems",
+                aquaponic_fish: "Aquaponic fish",
+                recommendations: "Recommendations",
+                priority_actions: "Priority actions",
+                weather_intelligence: "Location weather intelligence",
+                weather_realtime_title: "Realtime conditions and model prediction",
+                weather_realtime_copy: "Current weather is location-based; daily snapshots and predictions are archived automatically.",
+                daily_forecast: "Daily location forecast",
+                seasonal_eyebrow: "75-day crop and floor analysis",
+                seasonal_title: "Location planting plan",
+                preferred_plants: "Preferred plants",
+                full_outlook: "View complete 30-day transformer outlook",
+                project_config: "Project configuration",
+                project_create: "Create a farm project",
+                project_copy: "Location is captured from this device. Vertical projects support up to four floors.",
+                project_name: "Project name",
+                farm_area: "Farm area (sq ft)",
+                farm_goal: "Farm goal",
+                vertical_floors: "Vertical floors",
+                detect_location: "Detect location",
+                analyze_save: "Analyze and save",
+                project_history: "Project history",
+                your_projects: "Your farm projects",
+                telemetry: "ESP-WROOM-32 telemetry",
+                live_sensors: "Live sensor readings",
+                automation: "Automation",
+                device_controls: "Device controls",
+                two_hour_intelligence: "Two-hour intelligence",
+                sensor_feedback: "Sensor feedback",
+                immediate_alerts: "Immediate alerts",
+                auto: "Auto",
+                on: "On",
+                off: "Off",
+                dual_yolo: "Dual YOLO detection",
+                analyze_plant: "Analyze a plant image",
+                dual_yolo_copy: "Rice and multi-plant models run together on every image.",
+                plant_image: "Plant image",
+                analyze_disease: "Analyze disease",
+                detection_output: "Detection output",
+                esp_camera: "ESP camera",
+                latest_camera: "Latest camera image",
+                recent_scans: "Recent scans",
+                history_eyebrow: "Complete farm archive",
+                history_title: "History",
+                history_subtitle: "Review projects, disease images, sensors, weather, analyses, and account activity.",
+                filter_all: "All",
+                filter_disease: "Disease",
+                filter_sensors: "Sensors",
+                filter_weather: "Weather",
+                filter_analyses: "Analyses",
+                filter_activity: "Activity",
+                history_disease_eyebrow: "Image archive",
+                history_disease_title: "Disease detection history",
+                history_sensor_eyebrow: "Telemetry archive",
+                history_sensor_title: "All sensor packets",
+                history_weather_eyebrow: "Observed conditions",
+                history_weather_title: "Daily weather snapshots",
+                history_prediction_eyebrow: "Transformer archive",
+                history_prediction_title: "Weather predictions",
+                history_sensor_analysis_eyebrow: "Two-hour model",
+                history_sensor_analysis_title: "Sensor analyses",
+                history_seasonal_eyebrow: "75-day intelligence",
+                history_seasonal_title: "Crop and floor plans",
+                history_project_eyebrow: "Farm modules",
+                history_project_title: "Project history",
+                history_activity_eyebrow: "Account log",
+                history_activity_title: "Activity history",
+                history_no_disease: "No disease images stored yet.",
+                history_no_sensors: "No sensor packets stored yet.",
+                history_no_weather: "No weather snapshots stored yet.",
+                history_no_predictions: "No weather predictions stored yet.",
+                history_no_sensor_analysis: "No sensor analyses stored yet.",
+                history_no_seasonal: "No seasonal plans stored yet.",
+                history_no_projects: "No projects stored yet.",
+                history_no_activity: "No account activity stored yet."
+            },
+            bn: {
+                nav_dashboard: "ড্যাশবোর্ড",
+                nav_project: "প্রজেক্ট সেটআপ",
+                nav_project_short: "প্রজেক্ট",
+                nav_sensors: "সেন্সর",
+                nav_disease: "রোগ শনাক্তকরণ",
+                nav_disease_short: "রোগ",
+                nav_history: "ইতিহাস",
+                logout: "লগআউট",
+                page_dashboard: "ড্যাশবোর্ড",
+                subtitle_dashboard: "খামারের অবস্থা, পরামর্শ এবং আবহাওয়ার পূর্বাভাস।",
+                page_project: "প্রজেক্ট সেটআপ",
+                subtitle_project: "অবস্থানভিত্তিক কৃষি প্রজেক্ট তৈরি ও বিশ্লেষণ করুন।",
+                page_sensors: "সেন্সর",
+                subtitle_sensors: "লাইভ সেন্সর তথ্য, অটোমেশন নিয়ন্ত্রণ এবং সতর্কতা।",
+                page_disease: "রোগ শনাক্তকরণ",
+                subtitle_disease: "ধান ও অন্যান্য গাছের YOLO মডেল দিয়ে ছবি বিশ্লেষণ করুন।",
+                page_history: "ইতিহাস",
+                subtitle_history: "সংরক্ষিত খামার তথ্য, ছবি, সেন্সর রিডিং এবং বিশ্লেষণ দেখুন।",
+                hero_eyebrow: "নিউরোএগ্রো কন্ট্রোল সেন্টার",
+                hero_title: "ফসলের স্বাস্থ্য, আবহাওয়া এবং অটোমেশন এক জায়গায়।",
+                hero_copy: "সর্বশেষ অবস্থা দেখুন, AI পরামর্শ পর্যালোচনা করুন এবং গুরুত্বপূর্ণ পরিবর্তনে দ্রুত ব্যবস্থা নিন।",
+                hero_weather: "আবহাওয়া",
+                hero_sensor_score: "সেন্সর স্কোর",
+                hero_project: "বর্তমান প্রজেক্ট",
+                hero_next_check: "পরবর্তী বিশ্লেষণ",
+                metric_projects: "প্রজেক্ট",
+                metric_projects_sub: "খামার মডিউল",
+                metric_area: "বর্তমান এলাকা",
+                metric_area_sub: "বর্গফুট",
+                metric_floors: "ভার্টিক্যাল ফ্লোর",
+                metric_floors_sub: "সর্বোচ্চ চার",
+                metric_scans: "রোগ স্ক্যান",
+                metric_scans_sub: "সংরক্ষিত বিশ্লেষণ",
+                metric_account: "অ্যাকাউন্ট",
+                dashboard_fit: "খামার উপযোগিতা বিশ্লেষণ",
+                recommended_plants: "প্রস্তাবিত ফসল",
+                suitable_systems: "উপযুক্ত পদ্ধতি",
+                aquaponic_fish: "অ্যাকুয়াপনিক মাছ",
+                recommendations: "পরামর্শ",
+                priority_actions: "অগ্রাধিকারমূলক কাজ",
+                weather_intelligence: "অবস্থানভিত্তিক আবহাওয়া",
+                weather_realtime_title: "রিয়েলটাইম অবস্থা ও মডেল পূর্বাভাস",
+                weather_realtime_copy: "বর্তমান আবহাওয়া অবস্থানভিত্তিক; দৈনিক তথ্য ও পূর্বাভাস স্বয়ংক্রিয়ভাবে সংরক্ষিত হয়।",
+                daily_forecast: "দৈনিক স্থানীয় পূর্বাভাস",
+                seasonal_eyebrow: "৭৫ দিনের ফসল ও ফ্লোর বিশ্লেষণ",
+                seasonal_title: "অবস্থানভিত্তিক চাষ পরিকল্পনা",
+                preferred_plants: "পছন্দনীয় ফসল",
+                full_outlook: "সম্পূর্ণ ৩০ দিনের ট্রান্সফরমার পূর্বাভাস দেখুন",
+                project_config: "প্রজেক্ট কনফিগারেশন",
+                project_create: "নতুন কৃষি প্রজেক্ট তৈরি করুন",
+                project_copy: "এই ডিভাইস থেকে অবস্থান নেওয়া হবে। ভার্টিক্যাল প্রজেক্টে সর্বোচ্চ চারটি ফ্লোর থাকবে।",
+                project_name: "প্রজেক্টের নাম",
+                farm_area: "খামারের এলাকা (বর্গফুট)",
+                farm_goal: "খামারের লক্ষ্য",
+                vertical_floors: "ভার্টিক্যাল ফ্লোর",
+                detect_location: "অবস্থান শনাক্ত করুন",
+                analyze_save: "বিশ্লেষণ ও সংরক্ষণ",
+                project_history: "প্রজেক্টের ইতিহাস",
+                your_projects: "আপনার কৃষি প্রজেক্ট",
+                telemetry: "ESP-WROOM-32 টেলিমেট্রি",
+                live_sensors: "লাইভ সেন্সর রিডিং",
+                automation: "অটোমেশন",
+                device_controls: "ডিভাইস নিয়ন্ত্রণ",
+                two_hour_intelligence: "দুই ঘণ্টার বুদ্ধিমত্তা",
+                sensor_feedback: "সেন্সর ফিডব্যাক",
+                immediate_alerts: "তাৎক্ষণিক সতর্কতা",
+                auto: "অটো",
+                on: "চালু",
+                off: "বন্ধ",
+                dual_yolo: "দ্বৈত YOLO শনাক্তকরণ",
+                analyze_plant: "গাছের ছবি বিশ্লেষণ করুন",
+                dual_yolo_copy: "প্রতিটি ছবিতে ধান ও বহু-ফসলের মডেল একসাথে চলে।",
+                plant_image: "গাছের ছবি",
+                analyze_disease: "রোগ বিশ্লেষণ করুন",
+                detection_output: "শনাক্তকরণের ফলাফল",
+                esp_camera: "ESP ক্যামেরা",
+                latest_camera: "সর্বশেষ ক্যামেরা ছবি",
+                recent_scans: "সাম্প্রতিক স্ক্যান",
+                history_eyebrow: "সম্পূর্ণ খামার আর্কাইভ",
+                history_title: "ইতিহাস",
+                history_subtitle: "প্রজেক্ট, রোগের ছবি, সেন্সর, আবহাওয়া, বিশ্লেষণ এবং অ্যাকাউন্ট কার্যক্রম দেখুন।",
+                filter_all: "সব",
+                filter_disease: "রোগ",
+                filter_sensors: "সেন্সর",
+                filter_weather: "আবহাওয়া",
+                filter_analyses: "বিশ্লেষণ",
+                filter_activity: "কার্যক্রম",
+                history_disease_eyebrow: "ছবির আর্কাইভ",
+                history_disease_title: "রোগ শনাক্তকরণের ইতিহাস",
+                history_sensor_eyebrow: "টেলিমেট্রি আর্কাইভ",
+                history_sensor_title: "সব সেন্সর প্যাকেট",
+                history_weather_eyebrow: "পর্যবেক্ষিত অবস্থা",
+                history_weather_title: "দৈনিক আবহাওয়ার রেকর্ড",
+                history_prediction_eyebrow: "ট্রান্সফরমার আর্কাইভ",
+                history_prediction_title: "আবহাওয়ার পূর্বাভাস",
+                history_sensor_analysis_eyebrow: "দুই ঘণ্টার মডেল",
+                history_sensor_analysis_title: "সেন্সর বিশ্লেষণ",
+                history_seasonal_eyebrow: "৭৫ দিনের বুদ্ধিমত্তা",
+                history_seasonal_title: "ফসল ও ফ্লোর পরিকল্পনা",
+                history_project_eyebrow: "খামার মডিউল",
+                history_project_title: "প্রজেক্টের ইতিহাস",
+                history_activity_eyebrow: "অ্যাকাউন্ট লগ",
+                history_activity_title: "কার্যক্রমের ইতিহাস",
+                history_no_disease: "এখনও কোনো রোগের ছবি সংরক্ষিত নেই।",
+                history_no_sensors: "এখনও কোনো সেন্সর প্যাকেট সংরক্ষিত নেই।",
+                history_no_weather: "এখনও কোনো আবহাওয়ার রেকর্ড নেই।",
+                history_no_predictions: "এখনও কোনো আবহাওয়ার পূর্বাভাস নেই।",
+                history_no_sensor_analysis: "এখনও কোনো সেন্সর বিশ্লেষণ নেই।",
+                history_no_seasonal: "এখনও কোনো মৌসুমি পরিকল্পনা নেই।",
+                history_no_projects: "এখনও কোনো প্রজেক্ট নেই।",
+                history_no_activity: "এখনও কোনো অ্যাকাউন্ট কার্যক্রম নেই।"
+            }
+        };
+
+        const pageMetadata = {
+            dashboard: { titleKey: "page_dashboard", subtitleKey: "subtitle_dashboard" },
+            project: { titleKey: "page_project", subtitleKey: "subtitle_project" },
+            sensors: { titleKey: "page_sensors", subtitleKey: "subtitle_sensors" },
+            disease: { titleKey: "page_disease", subtitleKey: "subtitle_disease" },
+            history: { titleKey: "page_history", subtitleKey: "subtitle_history" }
+        };
+
+        const pageTitle = document.getElementById("page-title");
+        const pageSubtitle = document.getElementById("page-subtitle");
+        const pageSections = document.querySelectorAll("[data-page]");
+        const navigationButtons = document.querySelectorAll("[data-page-target]");
+        const languageButtons = document.querySelectorAll("[data-language]");
+        function readStoredLanguage() {
+            try {
+                return window.localStorage.getItem("nuroagro-language") || "en";
+            } catch (error) {
+                return "en";
+            }
+        }
+
+        function storeLanguage(language) {
+            try {
+                window.localStorage.setItem("nuroagro-language", language);
+            } catch (error) {
+                // Language switching still works when browser storage is unavailable.
+            }
+        }
+
+        let currentLanguage = readStoredLanguage();
+
+        function translate(key) {
+            const language = translations[currentLanguage] || translations.en;
+            return language[key] || translations.en[key] || key;
+        }
+
+        function applyLanguage(language) {
+            currentLanguage = translations[language] ? language : "en";
+            storeLanguage(currentLanguage);
+            document.documentElement.lang = currentLanguage === "bn" ? "bn" : "en";
+            document.querySelectorAll("[data-i18n]").forEach((element) => {
+                const translated = translate(element.dataset.i18n);
+                if (translated) {
+                    element.textContent = translated;
+                }
+            });
+            languageButtons.forEach((button) => {
+                button.classList.toggle("active", button.dataset.language === currentLanguage);
+            });
+            const activePage = document.querySelector(".app-page.active")?.dataset.page || "dashboard";
+            const metadata = pageMetadata[activePage] || pageMetadata.dashboard;
+            if (pageTitle) pageTitle.textContent = translate(metadata.titleKey);
+            if (pageSubtitle) pageSubtitle.textContent = translate(metadata.subtitleKey);
+        }
+
+        function showPage(pageName, updateHash = true) {
+            const validPage = pageMetadata[pageName] ? pageName : "dashboard";
+            pageSections.forEach((section) => {
+                section.classList.toggle("active", section.dataset.page === validPage);
+            });
+            navigationButtons.forEach((button) => {
+                button.classList.toggle("active", button.dataset.pageTarget === validPage);
+            });
+            if (pageTitle) pageTitle.textContent = translate(pageMetadata[validPage].titleKey);
+            if (pageSubtitle) pageSubtitle.textContent = translate(pageMetadata[validPage].subtitleKey);
+            if (updateHash) {
+                try {
+                    window.history.replaceState(null, "", `#${validPage}`);
+                } catch (error) {
+                    window.location.hash = validPage;
+                }
+            }
+            window.scrollTo({ top: 0, behavior: "auto" });
+        }
+
+        navigationButtons.forEach((button) => {
+            button.addEventListener("click", () => showPage(button.dataset.pageTarget));
+        });
+
+        languageButtons.forEach((button) => {
+            button.addEventListener("click", () => applyLanguage(button.dataset.language));
+        });
+
+        document.querySelectorAll("[data-history-filter]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const filter = button.dataset.historyFilter;
+                document.querySelectorAll("[data-history-filter]").forEach((item) => {
+                    item.classList.toggle("active", item === button);
+                });
+                document.querySelectorAll("[data-history-category]").forEach((group) => {
+                    group.hidden = filter !== "all" && group.dataset.historyCategory !== filter;
+                });
+            });
+        });
+
+        const initialPage = {% if disease_result %}"disease"{% elif setup_result %}"project"{% else %}(location.hash || "#dashboard").slice(1){% endif %};
+        applyLanguage(currentLanguage);
+        showPage(initialPage, false);
+
         const latitudeInput = document.getElementById("lat");
         const longitudeInput = document.getElementById("lng");
         const locationStatus = document.getElementById("location-status");
@@ -999,7 +2870,7 @@
                 return;
             }
 
-            locationStatus.textContent = "Detecting your farm location...";
+            locationStatus.textContent = "Detecting location...";
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     latitudeInput.value = position.coords.latitude.toFixed(6);
@@ -1013,8 +2884,15 @@
             );
         }
 
-        detectLocationButton.addEventListener("click", detectLocation);
-        window.addEventListener("DOMContentLoaded", detectLocation);
+        if (detectLocationButton) {
+            detectLocationButton.addEventListener("click", detectLocation);
+        }
+        window.addEventListener("hashchange", () => showPage(location.hash.slice(1), false));
     </script>
+    <script
+        async
+        src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"
+        onload="window.lucide && window.lucide.createIcons()"
+    ></script>
 </body>
 </html>

@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        if (window.location.protocol === "file:") {
+            window.location.replace("http://127.0.0.1:5000/admin");
+        }
+    </script>
     <title>{{ app_name }} Admin</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('favicon') }}">
     <style>
         :root {
             --ink: #161f2b;

@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        if (window.location.protocol === "file:") {
+            window.location.replace("http://127.0.0.1:5000/signup");
+        }
+    </script>
     <title>{{ app_name }} Sign Up</title>
     <style>
         * { box-sizing: border-box; }
