@@ -5,4 +5,4 @@ NIXPACKS_NODE_VERSION = "20"
 NIXPACKS_PYTHON_VERSION = "3.11"
 
 [phases.setup]
-nixPkgs = ["python311", "nodejs_20", "gcc", "libGL", "glib"]
+nixPkgs = ["gcc", "libGL", "glib"]
