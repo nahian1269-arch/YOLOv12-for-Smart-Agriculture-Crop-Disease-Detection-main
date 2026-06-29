@@ -71,4 +71,5 @@ or rely on Railway's `RAILWAY_VOLUME_MOUNT_PATH` if configured.
 
 - The first Railway build installs large ML dependencies, including TensorFlow and Ultralytics.
 - Keep `WEB_CONCURRENCY=1` unless your Railway plan has enough memory to load multiple YOLO/TensorFlow model copies.
+- OpenCV uses the headless wheel for server deployment, so no GUI or `libGL` Nix package is required.
 - Do not deploy with local defaults like `admin123`; production startup requires admin and secret variables.
