@@ -10,6 +10,6 @@
     "dev": "node scripts/start.js --dev"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
