@@ -36,14 +36,9 @@
             margin-bottom: 22px;
         }
         .mark {
-            display: grid;
-            place-items: center;
-            width: 44px;
-            height: 44px;
-            border-radius: 8px;
-            background: #1f7a4d;
-            color: white;
-            font-weight: 800;
+            width: 68px;
+            height: 52px;
+            object-fit: contain;
         }
         h1 { margin: 0; font-size: 25px; }
         p { color: #64716d; line-height: 1.5; }
@@ -91,7 +86,7 @@
 <body>
     <main class="auth">
         <div class="brand">
-            <div class="mark">NA</div>
+            <img class="mark" src="{{ url_for('static', filename='nuroagro-logo.png') }}" alt="NuroAgro logo">
             <div>
                 <h1>Create farmer account</h1>
                 <p style="margin: 3px 0 0;">Admin approval is required before login.</p>
@@ -104,6 +99,7 @@
             <div class="message notice">{{ notice }}</div>
         {% endif %}
         <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="full">
                 <label for="name">Full name or farm name</label>
                 <input id="name" name="name" required>

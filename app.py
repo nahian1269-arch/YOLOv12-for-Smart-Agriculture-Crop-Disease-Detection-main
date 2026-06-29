@@ -1,11 +1,14 @@
 import hashlib
+import io
 import json
 import logging
 import os
 import pickle
+import secrets
 import threading
 import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -14,7 +17,7 @@ import keras
 import numpy as np
 import requests
 import supervision as sv
-from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, render_template_string, request, session, url_for
 from keras import layers
 from keras.saving import register_keras_serializable
 from ultralytics import YOLO
@@ -75,6 +78,12 @@ WEATHER_INPUT_STEPS = 60
 WEATHER_FORECAST_DAYS = 30
 WEATHER_MODEL_PATH = "weather_prediction_transformer_model.keras"
 WEATHER_SCALER_PATH = "scaler.pkl"
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_REQUESTS = 90
+RATE_LIMITS = {}
+CSRF_EXEMPT_ENDPOINTS = {"api_sensors", "api_status", "api_sensor_stream", "api_device_commands"}
+COMMANDABLE_DEVICES = {"pump_1", "pump_2", "uv_lights", "camera", "relay"}
+COMMAND_VALUES = {"auto", "on", "off", "active"}
 
 SENSOR_DEFINITIONS = [
     {"key": "dht11_temp", "label": "DHT11 Air Temp", "unit": "C", "ideal": "20-30"},
@@ -273,8 +282,52 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def csrf_token():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+
+@app.context_processor
+def inject_security_context():
+    return {"csrf_token": csrf_token()}
+
+
 def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def rate_limit_key():
+    user_part = session.get("user_id") or session.get("admin_id") or "anonymous"
+    return f"{request.remote_addr}:{user_part}:{request.endpoint}"
+
+
+def rate_limited():
+    if request.endpoint in {"api_sensor_stream"}:
+        return False
+    key = rate_limit_key()
+    now = time.time()
+    window_start, count = RATE_LIMITS.get(key, (now, 0))
+    if now - window_start > RATE_LIMIT_WINDOW_SECONDS:
+        RATE_LIMITS[key] = (now, 1)
+        return False
+    count += 1
+    RATE_LIMITS[key] = (window_start, count)
+    return count > RATE_LIMIT_MAX_REQUESTS
+
+
+@app.before_request
+def apply_request_guards():
+    if rate_limited():
+        return jsonify({"ok": False, "error": "Too many requests. Please wait before trying again."}), 429
+
+    if request.method == "POST" and request.endpoint not in CSRF_EXEMPT_ENDPOINTS:
+        provided = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
+        expected = session.get("csrf_token", "")
+        if not expected or not secrets.compare_digest(provided, expected):
+            return jsonify({"ok": False, "error": "Security token expired. Refresh and try again."}), 400
 
 
 def allowed_file(filename):
@@ -396,6 +449,10 @@ def default_state():
         "weather_predictions": [],
         "seasonal_analyses": [],
         "sensor_analyses": [],
+        "device_commands": [],
+        "notifications": [],
+        "password_reset_tokens": [],
+        "model_registry": [],
     }
 
 
@@ -468,6 +525,195 @@ def supabase_insert(table_name, row):
 
 def supabase_configured():
     return bool(SUPABASE_URL and SUPABASE_API_KEY)
+
+
+def supabase_sync_state(state):
+    if not supabase_configured():
+        return {"enabled": False, "synced": 0, "failed": 0}
+
+    table_map = {
+        "users": "users",
+        "projects": "projects",
+        "sensor_history": "sensor_readings",
+        "disease_history": "disease_detections",
+        "weather_snapshots": "weather_snapshots",
+        "weather_predictions": "weather_predictions",
+        "activities": "activities",
+        "device_commands": "device_commands",
+        "notifications": "notifications",
+    }
+    synced = 0
+    failed = 0
+    for state_key, table_name in table_map.items():
+        for row in state.get(state_key, []):
+            if supabase_insert(table_name, row):
+                synced += 1
+            else:
+                failed += 1
+    return {"enabled": True, "synced": synced, "failed": failed}
+
+
+def add_notification(state, user_id, level, title, message, source="system", project_id=""):
+    notification = {
+        "id": f"NOT-{uuid.uuid4().hex[:8].upper()}",
+        "user_id": user_id,
+        "project_id": project_id,
+        "level": level,
+        "title": title,
+        "message": message,
+        "source": source,
+        "read": False,
+        "created_at": now_iso(),
+    }
+    state.setdefault("notifications", []).append(notification)
+    return notification
+
+
+def build_notifications(state, user, reading, alerts, weather_forecast, disease_history):
+    user_id = user.get("id", "")
+    project_id = reading.get("project_id", "")
+    existing = {
+        (item.get("source"), item.get("title"), item.get("message"))
+        for item in state.get("notifications", [])
+        if item.get("user_id") == user_id
+    }
+    candidates = []
+    temp = float(reading.get("dht11_temp", 0) or 0)
+    humidity = float(reading.get("dht11_humidity", 0) or 0)
+    water_level = float(reading.get("water_level", 0) or 0)
+    if temp > 34:
+        candidates.append(("alert", "High air temperature", f"Air temperature is {temp:g} C.", "sensor"))
+    if humidity < 45:
+        candidates.append(("watch", "Low humidity", f"Humidity is {humidity:g}%.", "sensor"))
+    if water_level < 25:
+        candidates.append(("alert", "Low water level", f"Water level is {water_level:g}%. Check pump and reservoir.", "sensor"))
+    for alert in alerts[:3]:
+        candidates.append(("watch", "Automation alert", alert, "automation"))
+    rainfall = weather_average(weather_forecast, "Rainfall") if weather_forecast else 0
+    if rainfall >= 12:
+        candidates.append(("watch", "Rain risk", f"Seven-day model rainfall average is {rainfall:g} mm.", "weather"))
+    if disease_history:
+        latest_disease = disease_history[-1]
+        if latest_disease.get("summary"):
+            top_disease = next(iter(latest_disease["summary"]))
+            candidates.append(("alert", "Disease detected", f"Latest scan found {top_disease}.", "disease"))
+
+    changed = False
+    for level, title, message, source in candidates:
+        key = (source, title, message)
+        if key not in existing:
+            add_notification(state, user_id, level, title, message, source, project_id)
+            changed = True
+    return changed
+
+
+def chart_points(records, key, limit=30):
+    points = []
+    for record in records[-limit:]:
+        value = record.get(key)
+        if value is None:
+            continue
+        try:
+            value = round(float(value), 2)
+        except (TypeError, ValueError):
+            continue
+        points.append({"label": record.get("timestamp", "")[:16], "value": value})
+    return points
+
+
+def disease_trend_points(records, limit=30):
+    grouped = defaultdict(int)
+    for record in records[-limit:]:
+        date_label = record.get("timestamp", "")[:10] or "unknown"
+        grouped[date_label] += sum(int(count) for count in record.get("summary", {}).values())
+    return [{"label": label, "value": value} for label, value in sorted(grouped.items())]
+
+
+def build_trends(sensor_history, weather_history, disease_history):
+    weather_points = []
+    for record in weather_history[-30:]:
+        current = record.get("current_weather", {})
+        weather_points.append({
+            "label": record.get("observed_at", "")[:10],
+            "value": current.get("humidity", 0),
+        })
+    return {
+        "temperature": chart_points(sensor_history, "dht11_temp"),
+        "humidity": chart_points(sensor_history, "dht11_humidity"),
+        "ph": chart_points(sensor_history, "ph"),
+        "soil": chart_points(sensor_history, "soil_moisture"),
+        "rainfall": [
+            {"label": item.get("weather_date", item.get("observed_at", "")[:10]), "value": item.get("current_weather", {}).get("rainfall", 0)}
+            for item in weather_history[-30:]
+        ],
+        "weather_humidity": weather_points,
+        "disease": disease_trend_points(disease_history),
+    }
+
+
+def model_file_info(filename, model, label):
+    path = os.path.join(os.getcwd(), filename)
+    exists = os.path.exists(path)
+    class_names = getattr(model, "names", {}) if model is not None else {}
+    return {
+        "id": filename.replace(".", "_"),
+        "name": label,
+        "file": filename,
+        "exists": exists,
+        "size_mb": round(os.path.getsize(path) / (1024 * 1024), 2) if exists else 0,
+        "updated_at": datetime.fromtimestamp(os.path.getmtime(path), timezone.utc).isoformat() if exists else "",
+        "classes": list(class_names.values()) if isinstance(class_names, dict) else [],
+        "last_inference_at": "",
+        "accuracy_note": "Operational model. Validate with local crop images before field decisions.",
+        "active": model is not None,
+    }
+
+
+def build_model_registry(state):
+    registry = state.setdefault("model_registry", [])
+    runtime = [
+        model_file_info("best.pt", rice_disease_model, "Rice disease YOLO"),
+        model_file_info("plant.pt", plant_disease_model, "Multi-plant disease YOLO"),
+        model_file_info(WEATHER_MODEL_PATH, weather_model, "Weather transformer"),
+    ]
+    by_file = {item.get("file"): item for item in registry}
+    for item in runtime:
+        item.update(by_file.get(item["file"], {}))
+    state["model_registry"] = runtime
+    return runtime
+
+
+def queue_device_command(state, user_id, device, value):
+    command = {
+        "id": f"CMD-{uuid.uuid4().hex[:8].upper()}",
+        "device": device,
+        "value": value,
+        "status": "queued",
+        "created_at": now_iso(),
+        "created_by": user_id,
+        "acknowledged_at": "",
+        "esp_response": "",
+    }
+    state.setdefault("device_commands", []).append(command)
+    return command
+
+
+def user_report_rows(state, user):
+    project_ids = {project.get("id") for project in state.get("projects", []) if project.get("owner_id") == user.get("id")}
+    rows = [["section", "timestamp", "label", "value"]]
+    for project in state.get("projects", []):
+        if project.get("id") in project_ids:
+            rows.append(["project", project.get("created_at", ""), project.get("name", ""), json.dumps(project)])
+    for reading in state.get("sensor_history", []):
+        if reading.get("project_id") in project_ids:
+            rows.append(["sensor", reading.get("timestamp", ""), reading.get("project_id", ""), json.dumps(reading)])
+    for record in state.get("disease_history", []):
+        if record.get("project_id") in project_ids or record.get("user_id") == user.get("id"):
+            rows.append(["disease", record.get("timestamp", ""), ",".join(record.get("summary", {}).keys()), json.dumps(record)])
+    for record in state.get("weather_snapshots", []):
+        if record.get("project_id") in project_ids or record.get("user_id") == user.get("id"):
+            rows.append(["weather", record.get("observed_at", ""), record.get("weather_date", ""), json.dumps(record)])
+    return rows
 
 
 def latest_sensor(state):
@@ -1543,6 +1789,7 @@ def process_image(image_path):
 
         image = cv2.resize(image, (1280, 720))
         annotated_image = image.copy()
+        image_area = float(image.shape[0] * image.shape[1])
         disease_counts = {}
         detection_records = []
         successful_models = 0
@@ -1560,6 +1807,9 @@ def process_image(image_path):
                 class_id = detections.class_id[detection_idx]
                 class_name = results.names[class_id]
                 confidence = float(detections.confidence[detection_idx])
+                x1, y1, x2, y2 = [float(value) for value in xyxy]
+                affected_area_pct = max(0.0, min(100.0, ((x2 - x1) * (y2 - y1) / image_area) * 100))
+                severity = "high" if confidence >= 0.75 and affected_area_pct >= 8 else "medium" if confidence >= 0.55 else "low"
                 disease_counts[class_name] = disease_counts.get(class_name, 0) + 1
                 detection_records.append({
                     "model": model_key,
@@ -1567,6 +1817,10 @@ def process_image(image_path):
                     "class_id": int(class_id),
                     "class_name": class_name,
                     "confidence": round(confidence, 5),
+                    "confidence_pct": round(confidence * 100, 1),
+                    "affected_area_pct": round(affected_area_pct, 2),
+                    "severity": severity,
+                    "treatment": disease_recommendation(class_name),
                     "bbox": [round(float(value), 2) for value in xyxy],
                 })
                 color = detection_color(model_key, class_name, class_id)
@@ -1711,6 +1965,29 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         record for record in state.get("activities", [])
         if record.get("actor_type") == "user" and record.get("actor_id") == user.get("id")
     ]
+    if build_notifications(state, user, reading, alerts, weather_forecast, disease_history):
+        save_state(state)
+    notifications = [
+        item for item in state.get("notifications", [])
+        if item.get("user_id") == user.get("id")
+    ]
+    model_registry = build_model_registry(state)
+    command_queue = [
+        command for command in state.get("device_commands", [])
+        if command.get("created_by") == user.get("id")
+    ]
+    trend_data = build_trends(sensor_history, weather_history, disease_history)
+    map_bounds = None
+    try:
+        lat = float(current_project.get("lat"))
+        lng = float(current_project.get("lng"))
+        map_bounds = {
+            "lat": lat,
+            "lng": lng,
+            "bbox": f"{lng - 0.02},{lat - 0.02},{lng + 0.02},{lat + 0.02}",
+        }
+    except (TypeError, ValueError):
+        map_bounds = None
 
     return {
         "app_name": APP_NAME,
@@ -1729,6 +2006,8 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "latest_sensor": reading,
         "automation": automation,
         "alerts": alerts,
+        "notifications": list(reversed(notifications[-8:])),
+        "unread_notifications": len([item for item in notifications if not item.get("read")]),
         "sensor_analysis": sensor_analysis,
         "recommendations": build_recommendations(reading, weather_forecast, disease_history),
         "projects": projects,
@@ -1743,6 +2022,14 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "current_project": current_project,
         "project_analysis": project_analysis,
         "controls": state.get("controls", {}),
+        "command_queue": list(reversed(command_queue[-10:])),
+        "trend_data": trend_data,
+        "map_bounds": map_bounds,
+        "model_registry": model_registry,
+        "supabase_sync_status": {
+            "enabled": supabase_configured(),
+            "mode": "Supabase REST sync with local JSON fallback" if supabase_configured() else "Local JSON fallback",
+        },
         "disease_history": list(reversed(disease_history[-5:])),
         "history": {
             "projects": list(reversed(projects)),
@@ -1875,6 +2162,87 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/password-reset", methods=["GET", "POST"])
+@state_transaction
+def password_reset_request():
+    state = load_state()
+    message = ""
+    reset_link = ""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = next((item for item in state.get("users", []) if item.get("email", "").lower() == email), None)
+        if user:
+            token = secrets.token_urlsafe(28)
+            state.setdefault("password_reset_tokens", []).append({
+                "token_hash": hash_password(token),
+                "user_id": user["id"],
+                "created_at": now_iso(),
+                "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+                "used": False,
+            })
+            record_activity(state, "user", user["id"], "password_reset_requested", "Password reset token created.")
+            save_state(state)
+            reset_link = url_for("password_reset_confirm", token=token, _external=True)
+        message = "If the email exists, a reset link has been created."
+    return render_template_string("""
+        <!doctype html>
+        <title>Password reset</title>
+        <style>body{font-family:Arial,sans-serif;max-width:520px;margin:48px auto;padding:0 18px;color:#172238}input,button{width:100%;padding:10px;margin-top:8px}button{background:#176b87;color:white;border:0;border-radius:8px;font-weight:700}.link{overflow-wrap:anywhere;background:#f1f5f8;padding:12px;border-radius:8px}</style>
+        <h1>Password reset</h1>
+        <p>{{ message or "Enter your account email." }}</p>
+        {% if reset_link %}<p class="link">{{ reset_link }}</p>{% endif %}
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input name="email" type="email" placeholder="email@example.com" required>
+            <button type="submit">Create reset link</button>
+        </form>
+        <p><a href="{{ url_for('login') }}">Back to login</a></p>
+    """, message=message, reset_link=reset_link)
+
+
+@app.route("/password-reset/<token>", methods=["GET", "POST"])
+@state_transaction
+def password_reset_confirm(token):
+    state = load_state()
+    token_hash = hash_password(token)
+    reset_record = next(
+        (
+            item for item in state.get("password_reset_tokens", [])
+            if item.get("token_hash") == token_hash and not item.get("used")
+        ),
+        None,
+    )
+    expired = True
+    if reset_record:
+        expires_at = parse_iso_datetime(reset_record.get("expires_at"))
+        expired = not expires_at or datetime.now(timezone.utc) > expires_at.astimezone(timezone.utc)
+    message = "Reset link is invalid or expired." if not reset_record or expired else ""
+    if request.method == "POST" and reset_record and not expired:
+        password = request.form.get("password", "")
+        if len(password) < 8:
+            message = "Use at least 8 characters."
+        else:
+            for user in state.get("users", []):
+                if user.get("id") == reset_record.get("user_id"):
+                    user["password_hash"] = generate_password_hash(password)
+                    reset_record["used"] = True
+                    record_activity(state, "user", user["id"], "password_reset_completed", "Password was reset.")
+                    save_state(state)
+                    return redirect(url_for("login"))
+    return render_template_string("""
+        <!doctype html>
+        <title>Set new password</title>
+        <style>body{font-family:Arial,sans-serif;max-width:520px;margin:48px auto;padding:0 18px;color:#172238}input,button{width:100%;padding:10px;margin-top:8px}button{background:#176b87;color:white;border:0;border-radius:8px;font-weight:700}.error{color:#c14f55}</style>
+        <h1>Set new password</h1>
+        {% if message %}<p class="error">{{ message }}</p>{% endif %}
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input name="password" type="password" placeholder="New password" minlength="8" required>
+            <button type="submit">Update password</button>
+        </form>
+    """, message=message)
+
+
 @app.route("/", methods=["GET", "POST"])
 @state_transaction
 def index():
@@ -1924,10 +2292,20 @@ def index():
         elif form_type == "control_update":
             control_name = request.form.get("control_name")
             control_value = request.form.get("control_value")
-            if control_name and control_value:
+            if control_name in COMMANDABLE_DEVICES and control_value in COMMAND_VALUES:
                 state.setdefault("controls", {})[control_name] = control_value
+                command = queue_device_command(state, user["id"], control_name, control_value)
                 record_activity(state, "user", user["id"], "control_update", f"{control_name}={control_value}")
+                add_notification(
+                    state,
+                    user["id"],
+                    "stable",
+                    "Device command queued",
+                    f"{control_name.replace('_', ' ').title()} set to {control_value}.",
+                    "automation",
+                )
                 save_state(state)
+                supabase_insert("device_commands", command)
 
         elif form_type == "disease":
             file = request.files.get("file")
@@ -1953,7 +2331,11 @@ def index():
                         "image": url_for("static", filename=output_path),
                         "summary": disease_counts,
                         "recommendations": disease_recommendations,
+                        "detections": detection_records,
                     }
+                    for model_item in build_model_registry(state):
+                        if model_item["file"] in {"best.pt", "plant.pt"}:
+                            model_item["last_inference_at"] = now_iso()
                     record = {
                         "id": f"DIS-{uuid.uuid4().hex[:8].upper()}",
                         "timestamp": now_iso(),
@@ -2087,6 +2469,136 @@ def api_status():
     })
 
 
+@app.route("/api/sensors/stream", methods=["GET"])
+def api_sensor_stream():
+    def event_stream():
+        last_sensor_id = ""
+        while True:
+            state = load_state()
+            reading = latest_sensor(state)
+            if reading.get("id") != last_sensor_id:
+                actions, alerts = evaluate_automation(reading)
+                payload = {
+                    "latest_sensor": reading,
+                    "automation": actions,
+                    "alerts": alerts,
+                    "notifications": state.get("notifications", [])[-5:],
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+                last_sensor_id = reading.get("id", "")
+            time.sleep(4)
+
+    return Response(event_stream(), mimetype="text/event-stream")
+
+
+@app.route("/api/device-commands", methods=["GET", "POST"])
+@state_transaction
+def api_device_commands():
+    state = load_state()
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        command_id = payload.get("command_id", "")
+        for command in state.get("device_commands", []):
+            if command.get("id") == command_id:
+                command["status"] = payload.get("status", "acknowledged")
+                command["acknowledged_at"] = now_iso()
+                command["esp_response"] = payload.get("message", "")
+                save_state(state)
+                return jsonify({"ok": True, "command": command})
+        return jsonify({"ok": False, "error": "Command not found"}), 404
+
+    pending = [
+        command for command in state.get("device_commands", [])
+        if command.get("status") == "queued"
+    ]
+    return jsonify({"ok": True, "commands": pending})
+
+
+@app.route("/api/notifications/read", methods=["POST"])
+@state_transaction
+def api_notifications_read():
+    state = load_state()
+    user = current_user(state)
+    if not user:
+        return jsonify({"ok": False, "error": "Login required"}), 401
+    for notification in state.get("notifications", []):
+        if notification.get("user_id") == user.get("id"):
+            notification["read"] = True
+    save_state(state)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/supabase/sync", methods=["POST"])
+@state_transaction
+def api_supabase_sync():
+    state = load_state()
+    if not current_admin(state) and not current_user(state):
+        return jsonify({"ok": False, "error": "Login required"}), 401
+    result = supabase_sync_state(state)
+    return jsonify({"ok": True, "result": result})
+
+
+@app.route("/api/models/select", methods=["POST"])
+@state_transaction
+def api_models_select():
+    state = load_state()
+    user = current_user(state)
+    if not user:
+        return jsonify({"ok": False, "error": "Login required"}), 401
+    model_id = request.form.get("model_id") or (request.get_json(silent=True) or {}).get("model_id", "")
+    for model_item in build_model_registry(state):
+        model_item["selected"] = model_item.get("id") == model_id
+    record_activity(state, "user", user["id"], "model_selected", model_id)
+    save_state(state)
+    return jsonify({"ok": True, "models": state.get("model_registry", [])})
+
+
+@app.route("/reports/farm.csv", methods=["GET"])
+@state_transaction
+def report_csv():
+    state = load_state()
+    user = current_user(state)
+    if not user:
+        return redirect(url_for("login"))
+    output = io.StringIO()
+    for row in user_report_rows(state, user):
+        output.write(",".join(json.dumps(cell)[1:-1] for cell in row) + "\n")
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=nuroagro-farm-report.csv"},
+    )
+
+
+@app.route("/reports/farm.html", methods=["GET"])
+@state_transaction
+def report_html():
+    state = load_state()
+    user = current_user(state)
+    if not user:
+        return redirect(url_for("login"))
+    rows = user_report_rows(state, user)[1:]
+    body = "\n".join(
+        f"<tr><td>{section}</td><td>{timestamp}</td><td>{label}</td><td><pre>{value}</pre></td></tr>"
+        for section, timestamp, label, value in rows
+    )
+    return Response(
+        f"""
+        <!doctype html>
+        <title>NuroAgro Farm Report</title>
+        <style>body{{font-family:Arial,sans-serif;margin:24px}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ddd;padding:8px;vertical-align:top}}pre{{white-space:pre-wrap}}</style>
+        <h1>NuroAgro Farm Report</h1>
+        <p>{user.get('name')} - generated {now_iso()}</p>
+        <button onclick="window.print()">Print / Save PDF</button>
+        <table><thead><tr><th>Section</th><th>Time</th><th>Label</th><th>Data</th></tr></thead><tbody>{body}</tbody></table>
+        """,
+        mimetype="text/html",
+    )
+
+
 if __name__ == "__main__":
     threading.Thread(target=sensor_analysis_scheduler, daemon=True, name="sensor-analysis-scheduler").start()
-    app.run(debug=True, use_reloader=False)
+    debug_mode = os.getenv("NUROAGRO_DEBUG", "0").strip().lower() in {"1", "true", "yes", "on"}
+    host = os.getenv("NUROAGRO_HOST", "127.0.0.1")
+    port = int(os.getenv("NUROAGRO_PORT", "5000"))
+    app.run(host=host, port=port, debug=debug_mode, use_reloader=False)

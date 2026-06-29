@@ -61,13 +61,9 @@
         }
 
         .mark {
-            display: grid;
-            place-items: center;
-            width: 42px;
-            height: 42px;
-            border-radius: 8px;
-            background: var(--admin);
-            font-weight: 800;
+            width: 66px;
+            height: 48px;
+            object-fit: contain;
         }
 
         .brand h1 {
@@ -367,7 +363,7 @@
         <main class="main">
             <section class="panel login-card">
                 <div class="brand" style="color: var(--ink);">
-                    <div class="mark">AD</div>
+                    <img class="mark" src="{{ url_for('static', filename='nuroagro-logo.png') }}" alt="NuroAgro logo">
                     <div>
                         <h1>{{ app_name }} Admin</h1>
                         <p>Separate administration route</p>
@@ -380,6 +376,7 @@
                     <div class="message notice">{{ notice }}</div>
                 {% endif %}
                 <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="form_type" value="admin_login">
                     <div>
                         <label for="username">Username</label>
@@ -402,7 +399,7 @@
         <div class="admin-shell">
             <aside class="sidebar">
                 <div class="brand">
-                    <div class="mark">AD</div>
+                    <img class="mark" src="{{ url_for('static', filename='nuroagro-logo.png') }}" alt="NuroAgro logo">
                     <div>
                         <h1>{{ app_name }}</h1>
                         <p>Admin dashboard</p>
@@ -416,6 +413,7 @@
                     <a href="#activity">Activity</a>
                     <a href="{{ url_for('index') }}">User dashboard</a>
                     <form method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="form_type" value="admin_logout">
                         <button class="logout-button" type="submit">Logout</button>
                     </form>
@@ -487,6 +485,7 @@
                                                 <div class="button-row">
                                                     {% if user.status != 'accepted' %}
                                                         <form method="post">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                                             <input type="hidden" name="form_type" value="admin_action">
                                                             <input type="hidden" name="admin_action" value="accept">
                                                             <input type="hidden" name="user_id" value="{{ user.id }}">
@@ -494,6 +493,7 @@
                                                         </form>
                                                     {% endif %}
                                                     <form method="post">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                                         <input type="hidden" name="form_type" value="admin_action">
                                                         <input type="hidden" name="admin_action" value="delete">
                                                         <input type="hidden" name="user_id" value="{{ user.id }}">

@@ -64,12 +64,16 @@
             min-height: 100vh;
             display: grid;
             grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+            align-items: stretch;
         }
 
         .sidebar {
             position: sticky;
             top: 0;
+            align-self: start;
             height: 100vh;
+            min-height: 100vh;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             padding: 20px 16px;
@@ -86,16 +90,10 @@
         }
 
         .brand-mark {
-            display: grid;
-            place-items: center;
-            width: 40px;
-            height: 40px;
-            flex: 0 0 40px;
-            border-radius: 8px;
-            background: #26998c;
-            color: white;
-            font-size: 13px;
-            font-weight: 800;
+            width: 54px;
+            height: 48px;
+            flex: 0 0 54px;
+            object-fit: contain;
         }
 
         .brand h1 {
@@ -112,7 +110,7 @@
         .nav {
             display: grid;
             gap: 6px;
-            margin-top: 32px;
+            margin-top: 28px;
         }
 
         .nav-button {
@@ -188,6 +186,7 @@
 
         .main {
             min-width: 0;
+            overflow: hidden;
             padding: 24px clamp(18px, 3vw, 36px) 40px;
         }
 
@@ -204,6 +203,112 @@
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .global-search {
+            position: relative;
+            width: min(420px, 34vw);
+        }
+
+        .global-search input {
+            width: 100%;
+            min-height: 40px;
+            padding: 9px 40px 9px 38px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            color: var(--ink);
+            box-shadow: 0 6px 18px rgba(26, 43, 72, 0.06);
+        }
+
+        .global-search::before {
+            content: "";
+            position: absolute;
+            z-index: 2;
+            top: 13px;
+            left: 14px;
+            width: 11px;
+            height: 11px;
+            border: 2px solid var(--muted);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .global-search::after {
+            content: "";
+            position: absolute;
+            z-index: 2;
+            top: 25px;
+            left: 26px;
+            width: 7px;
+            height: 2px;
+            background: var(--muted);
+            transform: rotate(45deg);
+            transform-origin: left center;
+            pointer-events: none;
+        }
+
+        .search-shortcut {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 6px;
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            color: var(--muted);
+            background: var(--surface-soft);
+            font-size: 10px;
+            font-weight: 800;
+            pointer-events: none;
+        }
+
+        .search-results {
+            position: absolute;
+            z-index: 60;
+            top: calc(100% + 7px);
+            right: 0;
+            left: 0;
+            display: grid;
+            max-height: 360px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 22px 50px rgba(22, 35, 58, 0.18);
+        }
+
+        .search-results[hidden] {
+            display: none;
+        }
+
+        .search-result {
+            display: grid;
+            gap: 3px;
+            width: 100%;
+            padding: 10px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--ink);
+            text-align: left;
+        }
+
+        .search-result:hover,
+        .search-result:focus-visible {
+            background: var(--surface-soft);
+        }
+
+        .search-result strong {
+            overflow: hidden;
+            font-size: 13px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .search-result span {
+            color: var(--muted);
+            font-size: 11px;
         }
 
         .language-switch {
@@ -265,6 +370,34 @@
 
         .app-page.active {
             display: block;
+        }
+
+        .app-page[data-page="dashboard"].active {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+        }
+
+        .app-page[data-page="dashboard"] .dashboard-hero {
+            order: 1;
+        }
+
+        .app-page[data-page="dashboard"] .weather-focus {
+            order: 2;
+        }
+
+        .app-page[data-page="dashboard"] .metrics {
+            order: 3;
+        }
+
+        .app-page[data-page="dashboard"] > .two-column {
+            order: 4;
+        }
+
+        .weather-focus {
+            margin-bottom: 16px;
+            border-top: 3px solid var(--primary);
+            box-shadow: 0 18px 42px rgba(23, 107, 135, 0.12);
         }
 
         .dashboard-hero {
@@ -373,7 +506,17 @@
 
         .grid {
             display: grid;
+            min-width: 0;
             gap: 16px;
+        }
+
+        .grid > *,
+        .panel,
+        .history-group,
+        .timeline-item,
+        .disease-history-card,
+        .disease-history-body {
+            min-width: 0;
         }
 
         .metrics {
@@ -475,6 +618,17 @@
             margin-bottom: 16px;
         }
 
+        .search-target-active {
+            outline: 2px solid var(--cyan);
+            outline-offset: 3px;
+            animation: search-highlight 1.6s ease-out;
+        }
+
+        @keyframes search-highlight {
+            from { box-shadow: 0 0 0 8px rgba(38, 153, 140, 0.18); }
+            to { box-shadow: var(--shadow); }
+        }
+
         .panel-header {
             display: flex;
             align-items: flex-start;
@@ -487,6 +641,7 @@
             margin: 4px 0 0;
             font-size: 19px;
             line-height: 1.3;
+            overflow-wrap: anywhere;
         }
 
         .panel-header p {
@@ -772,6 +927,7 @@
             display: block;
             margin: 8px 0 5px;
             font-size: 18px;
+            overflow-wrap: anywhere;
         }
 
         .seasonal-plan {
@@ -780,6 +936,60 @@
             border: 1px solid #ded9c8;
             border-radius: 8px;
             background: #fffdf5;
+        }
+
+        .seasonal-plan h3,
+        .agent-report {
+            overflow-wrap: anywhere;
+        }
+
+        .chart-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .mini-chart {
+            min-height: 160px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-soft);
+        }
+
+        .mini-chart canvas {
+            width: 100%;
+            height: 110px;
+        }
+
+        .map-frame {
+            width: 100%;
+            min-height: 260px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .notification-list,
+        .command-list,
+        .model-list,
+        .report-actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        .notification-item,
+        .command-item,
+        .model-item {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-soft);
+        }
+
+        .notification-item strong,
+        .command-item strong,
+        .model-item strong {
+            display: block;
         }
 
         .floor-grid {
@@ -1178,6 +1388,42 @@
             margin-bottom: 16px;
         }
 
+        .history-query-bar {
+            display: flex;
+            align-items: end;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+        }
+
+        .history-date-field {
+            display: grid;
+            gap: 5px;
+            min-width: 150px;
+        }
+
+        .history-date-field label {
+            margin: 0;
+        }
+
+        .history-date-field input {
+            min-height: 38px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: var(--surface-soft);
+        }
+
+        .history-result-count {
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 750;
+        }
+
         .history-filters {
             display: flex;
             flex-wrap: wrap;
@@ -1211,7 +1457,7 @@
 
         .disease-history-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
             gap: 14px;
         }
 
@@ -1239,6 +1485,155 @@
 
         .disease-history-body {
             padding: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .disease-detections {
+            max-height: 132px;
+            overflow-y: auto;
+            overflow-wrap: anywhere;
+        }
+
+        .history-record[hidden] {
+            display: none !important;
+        }
+
+        .app-footer {
+            display: grid;
+            grid-template-columns: minmax(260px, 1.3fr) repeat(3, minmax(150px, 0.7fr));
+            gap: 28px;
+            align-items: start;
+            margin-top: 34px;
+            padding: 26px clamp(16px, 2vw, 24px);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #ffffff;
+            color: var(--muted);
+            box-shadow: 0 12px 28px rgba(26, 43, 72, 0.07);
+        }
+
+        .footer-brand {
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr);
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .footer-brand img {
+            width: 58px;
+            height: 44px;
+            flex: 0 0 58px;
+            object-fit: contain;
+        }
+
+        .footer-brand strong,
+        .footer-brand span {
+            display: block;
+        }
+
+        .footer-brand strong {
+            color: var(--ink);
+            font-size: 16px;
+        }
+
+        .footer-brand span {
+            margin-top: 5px;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .footer-links {
+            display: grid;
+            gap: 7px;
+        }
+
+        .footer-link {
+            width: fit-content;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 750;
+            text-align: left;
+        }
+
+        .footer-link:hover {
+            color: var(--primary);
+        }
+
+        .footer-section {
+            display: grid;
+            gap: 10px;
+        }
+
+        .footer-section h4 {
+            margin: 0;
+            color: var(--ink);
+            font-size: 12px;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .footer-meta {
+            display: grid;
+            gap: 7px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            font-size: 12px;
+        }
+
+        .footer-meta li {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+        }
+
+        .footer-dot {
+            width: 8px;
+            height: 8px;
+            flex: 0 0 8px;
+            border-radius: 999px;
+            background: var(--cyan);
+        }
+
+        .footer-actions {
+            display: grid;
+            gap: 8px;
+        }
+
+        .footer-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            width: fit-content;
+            min-height: 32px;
+            padding: 7px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface-soft);
+            color: var(--primary-strong);
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .footer-action:hover {
+            border-color: #bdd3df;
+            background: #edf7f1;
+        }
+
+        .footer-bottom {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 10px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+            font-size: 11px;
         }
 
         .disease-history-body time {
@@ -1264,6 +1659,20 @@
         }
 
         @media (max-width: 1180px) {
+            .topbar {
+                align-items: flex-start;
+            }
+
+            .topbar-actions {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .global-search {
+                order: 3;
+                width: min(520px, 100%);
+            }
+
             .metrics {
                 grid-template-columns: repeat(3, minmax(130px, 1fr));
             }
@@ -1279,45 +1688,45 @@
             .dashboard-hero {
                 grid-template-columns: 1fr;
             }
+
+            .app-footer {
+                grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.8fr);
+            }
+
+            .footer-bottom {
+                grid-column: 1 / -1;
+            }
         }
 
         @media (max-width: 900px) {
             :root {
-                --sidebar-width: 88px;
+                --sidebar-width: 220px;
             }
 
             .sidebar {
-                padding-inline: 12px;
+                padding-inline: 14px;
             }
 
             .brand {
-                justify-content: center;
+                justify-content: flex-start;
                 padding: 0;
             }
 
-            .brand-copy,
-            .nav-label,
-            .account strong,
-            .account span {
-                display: none;
+            .brand h1 {
+                font-size: 18px;
             }
 
             .nav-button {
-                justify-content: center;
-                padding-inline: 8px;
+                gap: 9px;
+                padding-inline: 10px;
             }
 
             .nav-button.active {
-                box-shadow: inset 0 -3px 0 #40b77b;
+                box-shadow: inset 3px 0 0 #52d0bd;
             }
 
             .logout {
-                font-size: 0;
-            }
-
-            .logout::after {
-                content: "Exit";
-                font-size: 12px;
+                font-size: 13px;
             }
 
             .weather-summary {
@@ -1325,7 +1734,7 @@
             }
         }
 
-        @media (max-width: 680px) {
+        @media (max-width: 980px) {
             body {
                 padding-bottom: 72px;
             }
@@ -1343,13 +1752,29 @@
             }
 
             .topbar {
-                align-items: flex-start;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
                 margin-bottom: 16px;
             }
 
             .topbar-actions {
+                display: contents;
+            }
+
+            .language-switch {
+                align-self: start;
+                justify-self: end;
+            }
+
+            .global-search {
+                grid-column: 1 / -1;
+                grid-row: 2;
+                width: 100%;
+                margin-top: 4px;
+            }
+
+            .topbar-actions {
                 align-items: flex-end;
-                flex-direction: column;
             }
 
             .topbar h2 {
@@ -1495,7 +1920,7 @@
                 bottom: 0;
                 left: 0;
                 display: grid;
-                grid-template-columns: repeat(5, 1fr);
+                grid-template-columns: repeat(7, 1fr);
                 min-height: 64px;
                 padding: 6px 5px calc(6px + env(safe-area-inset-bottom));
                 border-top: 1px solid var(--line);
@@ -1529,6 +1954,20 @@
                 flex-direction: column;
             }
 
+            .history-query-bar {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .history-date-field {
+                min-width: 0;
+            }
+
+            .history-result-count {
+                grid-column: 1 / -1;
+                margin-left: 0;
+            }
+
             .history-filters {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1547,6 +1986,30 @@
             .mobile-nav .nav-button svg {
                 width: 19px;
                 height: 19px;
+            }
+
+            .app-footer {
+                grid-template-columns: 1fr;
+                gap: 18px;
+                padding: 20px 16px 86px;
+            }
+
+            .footer-links {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .footer-brand {
+                grid-template-columns: 48px minmax(0, 1fr);
+            }
+
+            .footer-brand img {
+                width: 48px;
+                height: 40px;
+                flex-basis: 48px;
+            }
+
+            .footer-bottom {
+                display: grid;
             }
         }
 
@@ -1578,10 +2041,10 @@
     <div class="app-shell">
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-mark">NA</div>
+                <img class="brand-mark" src="{{ url_for('static', filename='nuroagro-logo.png') }}" alt="NuroAgro logo">
                 <div class="brand-copy">
                     <h1>{{ app_name }}</h1>
-                    <p>Farm intelligence</p>
+                    <p data-i18n="farm_intelligence">Farm intelligence</p>
                 </div>
             </div>
 
@@ -1606,12 +2069,21 @@
                     <i data-lucide="history"></i>
                     <span class="nav-label" data-i18n="nav_history">History</span>
                 </button>
+                <button class="nav-button" type="button" data-page-target="models">
+                    <i data-lucide="cpu"></i>
+                    <span class="nav-label" data-i18n="nav_models">Models</span>
+                </button>
+                <button class="nav-button" type="button" data-page-target="reports">
+                    <i data-lucide="file-down"></i>
+                    <span class="nav-label" data-i18n="nav_reports">Reports</span>
+                </button>
             </nav>
 
             <div class="account">
                 <strong>{{ user.name }}</strong>
                 <span>{{ user.email }}</span>
                 <form method="post" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button class="logout" type="submit" data-i18n="logout">Logout</button>
                 </form>
             </div>
@@ -1624,6 +2096,18 @@
                     <p id="page-subtitle" data-i18n="subtitle_dashboard">Farm performance, recommendations, and weather forecast.</p>
                 </div>
                 <div class="topbar-actions">
+                    <div class="global-search">
+                        <input
+                            id="global-search-input"
+                            type="search"
+                            autocomplete="off"
+                            data-i18n-placeholder="search_placeholder"
+                            placeholder="Search projects, sensors, diseases, and history"
+                            aria-label="Search application"
+                        >
+                        <span class="search-shortcut">/</span>
+                        <div class="search-results" id="global-search-results" hidden></div>
+                    </div>
                     <div class="language-switch" aria-label="Language">
                         <button class="language-button active" type="button" data-language="en">EN</button>
                         <button class="language-button" type="button" data-language="bn">বাংলা</button>
@@ -1697,6 +2181,67 @@
                     <article class="panel">
                         <div class="panel-header">
                             <div>
+                                <span class="eyebrow">Farm map</span>
+                                <h3>{{ current_project.name }}</h3>
+                                <p>{{ current_project.lat }}, {{ current_project.lng }}</p>
+                            </div>
+                        </div>
+                        {% if map_bounds %}
+                            <iframe
+                                class="map-frame"
+                                loading="lazy"
+                                referrerpolicy="no-referrer-when-downgrade"
+                                src="https://www.openstreetmap.org/export/embed.html?bbox={{ map_bounds.bbox }}&layer=mapnik&marker={{ map_bounds.lat }},{{ map_bounds.lng }}"
+                                title="Farm location map"
+                            ></iframe>
+                        {% else %}
+                            <div class="history-empty">Create a project with location to show the farm map.</div>
+                        {% endif %}
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow">Notifications</span>
+                                <h3>{{ unread_notifications }} unread alerts</h3>
+                            </div>
+                            <button class="button secondary" type="button" id="mark-notifications-read">Mark read</button>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            {% for item in notifications %}
+                                <div class="notification-item">
+                                    <strong>{{ item.title }}</strong>
+                                    <span>{{ item.message }}</span>
+                                    <small>{{ item.created_at }} · {{ item.source }}</small>
+                                </div>
+                            {% else %}
+                                <div class="history-empty">No active notifications.</div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
+
+                <article class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">Charts and trends</span>
+                            <h3>Temperature, humidity, pH, soil, rainfall, and disease trend</h3>
+                        </div>
+                    </div>
+                    <div class="chart-board">
+                        <div class="mini-chart"><strong>Temperature</strong><canvas data-chart-key="temperature"></canvas></div>
+                        <div class="mini-chart"><strong>Humidity</strong><canvas data-chart-key="humidity"></canvas></div>
+                        <div class="mini-chart"><strong>pH</strong><canvas data-chart-key="ph"></canvas></div>
+                        <div class="mini-chart"><strong>Soil moisture</strong><canvas data-chart-key="soil"></canvas></div>
+                        <div class="mini-chart"><strong>Rainfall</strong><canvas data-chart-key="rainfall"></canvas></div>
+                        <div class="mini-chart"><strong>Disease detections</strong><canvas data-chart-key="disease"></canvas></div>
+                    </div>
+                </article>
+
+                <div class="grid two-column">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
                                 <span class="eyebrow" data-i18n="dashboard_fit">Farm-fit analysis</span>
                                 <h3>{{ project_analysis.recommendation }}</h3>
                                 <p>{{ project_analysis.reason }}</p>
@@ -1713,14 +2258,14 @@
                         <div class="score-list">
                             <div>
                                 <div class="score-heading">
-                                    <span>Vertical farming fit</span>
+                                    <span data-i18n="vertical_farming_fit">Vertical farming fit</span>
                                     <strong>{{ project_analysis.vertical_score }}%</strong>
                                 </div>
                                 <div class="progress"><span style="width: {{ project_analysis.vertical_score }}%;"></span></div>
                             </div>
                             <div>
                                 <div class="score-heading">
-                                    <span>Traditional farming fit</span>
+                                    <span data-i18n="traditional_farming_fit">Traditional farming fit</span>
                                     <strong>{{ project_analysis.traditional_score }}%</strong>
                                 </div>
                                 <div class="progress"><span class="cyan" style="width: {{ project_analysis.traditional_score }}%;"></span></div>
@@ -1770,7 +2315,7 @@
                     </article>
                 </div>
 
-                <article class="panel">
+                <article class="panel weather-focus">
                     <div class="panel-header">
                         <div>
                             <span class="eyebrow" data-i18n="weather_intelligence">Location weather intelligence</span>
@@ -1778,7 +2323,7 @@
                             <p data-i18n="weather_realtime_copy">Current weather is location-based; daily snapshots and predictions are archived automatically.</p>
                         </div>
                         {% if supabase_enabled %}
-                            <span class="status stable">Supabase configured</span>
+                            <span class="status stable" data-i18n="supabase_configured">Supabase configured</span>
                         {% endif %}
                     </div>
 
@@ -1796,19 +2341,19 @@
                                 <div class="weather-condition">{{ realtime_weather.current.condition }}</div>
                                 <div class="weather-meta">
                                     <div>
-                                        <span>Humidity</span>
+                                        <span data-i18n="humidity">Humidity</span>
                                         <strong>{{ realtime_weather.current.humidity }}%</strong>
                                     </div>
                                     <div>
-                                        <span>Feels like</span>
+                                        <span data-i18n="feels_like">Feels like</span>
                                         <strong>{{ realtime_weather.current.apparent_temperature }}°C</strong>
                                     </div>
                                     <div>
-                                        <span>Wind</span>
+                                        <span data-i18n="wind">Wind</span>
                                         <strong>{{ realtime_weather.current.wind_speed }} km/h</strong>
                                     </div>
                                     <div>
-                                        <span>Pressure</span>
+                                        <span data-i18n="pressure">Pressure</span>
                                         <strong>{{ realtime_weather.current.pressure }} hPa</strong>
                                     </div>
                                 </div>
@@ -1817,12 +2362,12 @@
                             <div class="prediction-panel">
                                 <div class="prediction-header">
                                     <div>
-                                        <span class="eyebrow">Transformer next-day prediction</span>
+                                        <span class="eyebrow" data-i18n="transformer_prediction">Transformer next-day prediction</span>
                                         <h4>
                                             {% if next_day_prediction %}
                                                 {{ next_day_prediction.target_at }}
                                             {% else %}
-                                                Prediction unavailable
+                                                <span data-i18n="prediction_unavailable">Prediction unavailable</span>
                                             {% endif %}
                                         </h4>
                                     </div>
@@ -1834,27 +2379,27 @@
                                 {% if next_day_prediction %}
                                     <div class="grid prediction-values">
                                         <div class="weather-value">
-                                            <span>Maximum</span>
+                                            <span data-i18n="maximum">Maximum</span>
                                             <strong>{{ next_day_prediction.prediction.max_temp }}°C</strong>
                                         </div>
                                         <div class="weather-value">
-                                            <span>Minimum</span>
+                                            <span data-i18n="minimum">Minimum</span>
                                             <strong>{{ next_day_prediction.prediction.min_temp }}°C</strong>
                                         </div>
                                         <div class="weather-value">
-                                            <span>Average</span>
+                                            <span data-i18n="average">Average</span>
                                             <strong>{{ next_day_prediction.prediction.avg_temp }}°C</strong>
                                         </div>
                                         <div class="weather-value">
-                                            <span>Humidity</span>
+                                            <span data-i18n="humidity">Humidity</span>
                                             <strong>{{ next_day_prediction.prediction.humidity }}%</strong>
                                         </div>
                                         <div class="weather-value">
-                                            <span>Pressure</span>
+                                            <span data-i18n="pressure">Pressure</span>
                                             <strong>{{ next_day_prediction.prediction.pressure }} hPa</strong>
                                         </div>
                                         <div class="weather-value">
-                                            <span>Rainfall</span>
+                                            <span data-i18n="rainfall">Rainfall</span>
                                             <strong>{{ next_day_prediction.prediction.rainfall }} mm</strong>
                                         </div>
                                     </div>
@@ -1882,8 +2427,8 @@
                                     <span class="eyebrow" data-i18n="seasonal_eyebrow">75-day crop and floor analysis</span>
                                     <h3 data-i18n="seasonal_title">Location planting plan</h3>
                                     <p>
-                                        Generated {{ seasonal_analysis.generated_at }} ·
-                                        Next refresh {{ seasonal_analysis.next_analysis_at }}
+                                        <span data-i18n="generated">Generated</span> {{ seasonal_analysis.generated_at }} ·
+                                        <span data-i18n="next_refresh">Next refresh</span> {{ seasonal_analysis.next_analysis_at }}
                                     </p>
                                 </div>
                                 <span class="status stable">{{ seasonal_analysis.source }}</span>
@@ -1919,7 +2464,7 @@
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Day</th>
+                                            <th data-i18n="day">Day</th>
                                             {% for field_name, label, unit in weather_features %}
                                                 <th>{{ label }} ({{ unit }})</th>
                                             {% endfor %}
@@ -1967,6 +2512,7 @@
                     {% endif %}
 
                     <form method="post" action="{{ url_for('index') }}#project" id="project-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="form_type" value="project_setup">
                         <div class="form-grid">
                             <div>
@@ -1996,11 +2542,11 @@
                                 </select>
                             </div>
                             <div>
-                                <label for="lat">Latitude</label>
+                                <label for="lat" data-i18n="latitude">Latitude</label>
                                 <input id="lat" name="lat" type="number" step="any" readonly required>
                             </div>
                             <div>
-                                <label for="lng">Longitude</label>
+                                <label for="lng" data-i18n="longitude">Longitude</label>
                                 <input id="lng" name="lng" type="number" step="any" readonly required>
                             </div>
                         </div>
@@ -2014,7 +2560,7 @@
                                 <span data-i18n="analyze_save">Analyze and save</span>
                             </button>
                         </div>
-                        <p class="location-status" id="location-status">Waiting for location permission.</p>
+                        <p class="location-status" id="location-status" data-i18n="waiting_location">Waiting for location permission.</p>
                     </form>
                 </article>
 
@@ -2030,11 +2576,11 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Project</th>
-                                        <th>Area</th>
-                                        <th>Goal</th>
-                                        <th>Floors</th>
-                                        <th>Location</th>
+                                        <th data-i18n="project">Project</th>
+                                        <th data-i18n="area">Area</th>
+                                        <th data-i18n="goal">Goal</th>
+                                        <th data-i18n="floors">Floors</th>
+                                        <th data-i18n="location">Location</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2060,16 +2606,16 @@
                         <div>
                             <span class="eyebrow" data-i18n="telemetry">ESP-WROOM-32 telemetry</span>
                             <h3 data-i18n="live_sensors">Live sensor readings</h3>
-                            <p>Latest packet: {{ latest_sensor.timestamp }}</p>
+                            <p><span data-i18n="latest_packet">Latest packet</span>: {{ latest_sensor.timestamp }}</p>
                         </div>
-                        <span class="status stable">Connected</span>
+                        <span class="status stable" data-i18n="connected">Connected</span>
                     </div>
                     <div class="grid sensor-grid">
                         {% for card in sensor_cards %}
                             <div class="sensor-card {{ card.status }}">
                                 <span class="sensor-label">{{ card.label }}</span>
                                 <strong>{{ card.value }} {{ card.unit }}</strong>
-                                <small>Ideal: {{ card.ideal }}</small>
+                                <small><span data-i18n="ideal">Ideal</span>: {{ card.ideal }}</small>
                             </div>
                         {% endfor %}
                     </div>
@@ -2087,20 +2633,21 @@
                             <table class="automation-table">
                                 <thead>
                                     <tr>
-                                        <th>Device</th>
-                                        <th>Mode</th>
-                                        <th>AI action</th>
-                                        <th>Manual setting</th>
+                                        <th data-i18n="device">Device</th>
+                                        <th data-i18n="mode">Mode</th>
+                                        <th data-i18n="ai_action">AI action</th>
+                                        <th data-i18n="manual_setting">Manual setting</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for name, mode in controls.items() %}
                                         <tr>
-                                            <td data-label="Device">{{ name.replace('_', ' ').title() }}</td>
-                                            <td data-label="Mode"><span class="status stable">{{ mode }}</span></td>
-                                            <td data-label="AI action">{{ automation.get(name, 'hold') }}</td>
-                                            <td data-label="Manual setting">
+                                            <td data-label="Device" data-i18n-label="device">{{ name.replace('_', ' ').title() }}</td>
+                                            <td data-label="Mode" data-i18n-label="mode"><span class="status stable">{{ mode }}</span></td>
+                                            <td data-label="AI action" data-i18n-label="ai_action">{{ automation.get(name, 'hold') }}</td>
+                                            <td data-label="Manual setting" data-i18n-label="manual_setting">
                                                 <form method="post" action="{{ url_for('index') }}#sensors" class="control-buttons">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                                     <input type="hidden" name="form_type" value="control_update">
                                                     <input type="hidden" name="control_name" value="{{ name }}">
                                                     <button
@@ -2168,6 +2715,29 @@
                         </ul>
                     </article>
                 </div>
+
+                <article class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">ESP32 command queue</span>
+                            <h3>Queued pump, light, relay, and camera commands</h3>
+                            <p>ESP32 can fetch pending commands from <code>/api/device-commands</code> and acknowledge them with POST.</p>
+                        </div>
+                    </div>
+                    <div class="command-list">
+                        {% for command in command_queue %}
+                            <div class="command-item">
+                                <strong>{{ command.device.replace('_', ' ')|title }} -> {{ command.value|title }}</strong>
+                                <span>{{ command.status }} · {{ command.created_at }}</span>
+                                {% if command.acknowledged_at %}
+                                    <small>Acknowledged {{ command.acknowledged_at }} {{ command.esp_response }}</small>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="history-empty">No device commands queued yet.</div>
+                        {% endfor %}
+                    </div>
+                </article>
             </section>
 
             <section class="app-page" data-page="disease">
@@ -2186,6 +2756,7 @@
                         {% endif %}
 
                         <form method="post" action="{{ url_for('index') }}#disease" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <input type="hidden" name="form_type" value="disease">
                             <div class="upload-zone">
                                 <label for="file" data-i18n="plant_image">Plant image</label>
@@ -2212,6 +2783,35 @@
                                     <li>{{ action }}</li>
                                 {% endfor %}
                             </ul>
+                            {% if disease_result.detections %}
+                                <h4 class="subheading">Detailed disease report</h4>
+                                <div class="table-wrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Model</th>
+                                                <th>Disease</th>
+                                                <th>Confidence</th>
+                                                <th>Affected area</th>
+                                                <th>Severity</th>
+                                                <th>Treatment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for detection in disease_result.detections %}
+                                                <tr>
+                                                    <td>{{ detection.model_label }}</td>
+                                                    <td>{{ detection.class_name }}</td>
+                                                    <td>{{ detection.confidence_pct }}%</td>
+                                                    <td>{{ detection.affected_area_pct }}%</td>
+                                                    <td><span class="status {% if detection.severity == 'high' %}alert{% elif detection.severity == 'medium' %}watch{% else %}stable{% endif %}">{{ detection.severity }}</span></td>
+                                                    <td>{{ detection.treatment }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endif %}
                         {% endif %}
                     </article>
 
@@ -2272,6 +2872,19 @@
                     </div>
                 </div>
 
+                <div class="history-query-bar">
+                    <div class="history-date-field">
+                        <label for="history-from" data-i18n="date_from">From date</label>
+                        <input id="history-from" type="date">
+                    </div>
+                    <div class="history-date-field">
+                        <label for="history-to" data-i18n="date_to">To date</label>
+                        <input id="history-to" type="date">
+                    </div>
+                    <button class="button secondary" id="history-clear-dates" type="button" data-i18n="clear_dates">Clear dates</button>
+                    <span class="history-result-count" id="history-result-count"></span>
+                </div>
+
                 <section class="history-group" data-history-category="diseases">
                     <article class="panel">
                         <div class="panel-header">
@@ -2282,7 +2895,7 @@
                         </div>
                         <div class="disease-history-grid">
                             {% for item in history.diseases %}
-                                <article class="disease-history-card">
+                                <article class="disease-history-card history-record" data-history-date="{{ item.timestamp[:10] }}">
                                     <img src="{{ item.image }}" alt="Stored disease detection result" loading="lazy">
                                     <div class="disease-history-body">
                                         <time>{{ item.timestamp }}</time>
@@ -2293,7 +2906,7 @@
                                             {% endfor %}
                                         </div>
                                         {% if item.detections %}
-                                            <p style="margin: 10px 0 0; color: var(--muted); font-size: 12px;">
+                                            <p class="disease-detections" style="margin: 10px 0 0; color: var(--muted); font-size: 12px;">
                                                 {% for detection in item.detections %}
                                                     {{ detection.model_label }} · {{ detection.class_name }} · {{ (detection.confidence * 100)|round(1) }}%{% if not loop.last %}<br>{% endif %}
                                                 {% endfor %}
@@ -2320,19 +2933,19 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Time</th>
-                                        <th>Air temp</th>
-                                        <th>Humidity</th>
-                                        <th>Soil</th>
-                                        <th>Water</th>
+                                        <th data-i18n="time">Time</th>
+                                        <th data-i18n="air_temperature">Air temp</th>
+                                        <th data-i18n="humidity">Humidity</th>
+                                        <th data-i18n="soil">Soil</th>
+                                        <th data-i18n="water">Water</th>
                                         <th>Lux</th>
                                         <th>MQ-135</th>
-                                        <th>Motion</th>
+                                        <th data-i18n="motion">Motion</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in history.sensors %}
-                                        <tr>
+                                        <tr class="history-record" data-history-date="{{ item.timestamp[:10] }}">
                                             <td>{{ item.timestamp }}</td>
                                             <td>{{ item.dht11_temp }}&deg;C</td>
                                             <td>{{ item.dht11_humidity }}%</td>
@@ -2362,7 +2975,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.weather %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.observed_at[:10] }}">
                                         <time>{{ item.observed_at }}</time>
                                         <div class="chips">
                                             <span class="chip">{{ item.weather_date }}</span>
@@ -2386,7 +2999,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.predictions %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.predicted_at[:10] }}">
                                         <time>{{ item.predicted_at }} → {{ item.target_at }}</time>
                                         <div class="chips">
                                             <span class="chip">{{ item.prediction.avg_temp }}&deg;C</span>
@@ -2413,7 +3026,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.sensor_analyses %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.generated_at[:10] }}">
                                         <time>{{ item.generated_at }}</time>
                                         <div class="chips">
                                             <span class="chip">{{ item.health_score }}/100</span>
@@ -2439,7 +3052,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.seasonal %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.generated_at[:10] }}">
                                         <time>{{ item.generated_at }}</time>
                                         <div class="chips">
                                             {% for plant in item.preferred_plants %}
@@ -2467,7 +3080,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.projects %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.created_at[:10] }}">
                                         <time>{{ item.created_at }}</time>
                                         <strong>{{ item.name }}</strong>
                                         <div class="chips" style="margin-top: 8px;">
@@ -2491,7 +3104,7 @@
                             </div>
                             <div class="timeline">
                                 {% for item in history.activities %}
-                                    <div class="timeline-item">
+                                    <div class="timeline-item history-record" data-history-date="{{ item.timestamp[:10] }}">
                                         <time>{{ item.timestamp }}</time>
                                         <strong>{{ item.action.replace('_', ' ')|title }}</strong>
                                         <p style="margin: 5px 0 0; color: var(--muted); font-size: 12px;">{{ item.details }}</p>
@@ -2504,6 +3117,119 @@
                     </div>
                 </section>
             </section>
+
+            <section class="app-page" data-page="models">
+                <article class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">Model management</span>
+                            <h3>Runtime model registry</h3>
+                            <p>Review model files, classes, update dates, last inference time, and active status.</p>
+                        </div>
+                    </div>
+                    <div class="model-list">
+                        {% for model in model_registry %}
+                            <div class="model-item">
+                                <strong>{{ model.name }}</strong>
+                                <span>{{ model.file }} · {{ model.size_mb }} MB · {% if model.active %}active{% else %}unavailable{% endif %}</span>
+                                <span>Updated {{ model.updated_at or 'unknown' }}</span>
+                                <span>Last inference {{ model.last_inference_at or 'not recorded' }}</span>
+                                <p>{{ model.accuracy_note }}</p>
+                                <div class="chips">
+                                    {% for class_name in model.classes[:18] %}
+                                        <span class="chip">{{ class_name }}</span>
+                                    {% endfor %}
+                                </div>
+                                <button class="button secondary model-select" type="button" data-model-id="{{ model.id }}">Select version</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+
+            <section class="app-page" data-page="reports">
+                <div class="grid two-column">
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow">PDF and Excel reports</span>
+                                <h3>Download farm health reports</h3>
+                                <p>CSV opens in Excel. The printable HTML report can be saved as PDF from the browser print dialog.</p>
+                            </div>
+                        </div>
+                        <div class="report-actions">
+                            <a class="button" href="{{ url_for('report_csv') }}">
+                                <i data-lucide="table"></i>
+                                <span>Download Excel CSV</span>
+                            </a>
+                            <a class="button secondary" href="{{ url_for('report_html') }}" target="_blank" rel="noopener">
+                                <i data-lucide="file-text"></i>
+                                <span>Open printable PDF report</span>
+                            </a>
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <span class="eyebrow">Supabase migration</span>
+                                <h3>{{ supabase_sync_status.mode }}</h3>
+                                <p>Sync users, projects, sensors, disease scans, weather, activities, commands, and notifications to configured Supabase REST tables.</p>
+                            </div>
+                        </div>
+                        <button class="button secondary" type="button" id="supabase-sync">Run Supabase sync</button>
+                        <div class="message success" id="supabase-sync-result" hidden></div>
+                    </article>
+                </div>
+            </section>
+
+            <footer class="app-footer">
+                <div class="footer-brand">
+                    <img src="{{ url_for('static', filename='nuroagro-logo.png') }}" alt="NuroAgro logo">
+                    <div>
+                        <strong>NuroAgro</strong>
+                        <span data-i18n="footer_copy">Intelligent farming operations for traditional and vertical farms.</span>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Workspace</h4>
+                    <div class="footer-links" aria-label="Footer navigation">
+                        <button class="footer-link" type="button" data-page-target="dashboard" data-i18n="nav_dashboard">Dashboard</button>
+                        <button class="footer-link" type="button" data-page-target="sensors" data-i18n="nav_sensors">Sensors</button>
+                        <button class="footer-link" type="button" data-page-target="disease" data-i18n="nav_disease_short">Disease</button>
+                        <button class="footer-link" type="button" data-page-target="history" data-i18n="nav_history">History</button>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Platform</h4>
+                    <ul class="footer-meta">
+                        <li><span class="footer-dot"></span><span>{{ current_project.name }}</span></li>
+                        <li><span class="footer-dot"></span><span>{{ supabase_sync_status.mode }}</span></li>
+                        <li><span class="footer-dot"></span><span>{{ unread_notifications }} unread alerts</span></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Exports</h4>
+                    <div class="footer-actions">
+                        <a class="footer-action" href="{{ url_for('report_csv') }}">
+                            <i data-lucide="table"></i>
+                            <span>CSV report</span>
+                        </a>
+                        <a class="footer-action" href="{{ url_for('report_html') }}" target="_blank" rel="noopener">
+                            <i data-lucide="file-text"></i>
+                            <span>PDF view</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="footer-bottom">
+                    <span>&copy; 2026 NuroAgro. <span data-i18n="footer_rights">All rights reserved.</span></span>
+                    <span>Smart agriculture workspace · Local AI + weather intelligence</span>
+                </div>
+            </footer>
         </main>
     </div>
 
@@ -2528,6 +3254,14 @@
             <i data-lucide="history"></i>
             <span data-i18n="nav_history">History</span>
         </button>
+        <button class="nav-button" type="button" data-page-target="models">
+            <i data-lucide="cpu"></i>
+            <span data-i18n="nav_models">Models</span>
+        </button>
+        <button class="nav-button" type="button" data-page-target="reports">
+            <i data-lucide="file-down"></i>
+            <span data-i18n="nav_reports">Reports</span>
+        </button>
     </nav>
 
     <script>
@@ -2540,7 +3274,14 @@
                 nav_disease: "Disease AI",
                 nav_disease_short: "Disease",
                 nav_history: "History",
+                nav_models: "Models",
+                nav_reports: "Reports",
                 logout: "Logout",
+                farm_intelligence: "Farm intelligence",
+                search_placeholder: "Search projects, sensors, diseases, and history",
+                search_no_results: "No matching results",
+                footer_copy: "Intelligent farming operations for traditional and vertical farms.",
+                footer_rights: "All rights reserved.",
                 page_dashboard: "Dashboard",
                 subtitle_dashboard: "Farm performance, recommendations, and weather forecast.",
                 page_project: "Project Setup",
@@ -2551,6 +3292,10 @@
                 subtitle_disease: "Analyze plant images with the rice and multi-plant YOLO models.",
                 page_history: "History",
                 subtitle_history: "Review every stored farm event, image, reading, and analysis.",
+                page_models: "Models",
+                subtitle_models: "Manage AI model files, classes, status, and version selection.",
+                page_reports: "Reports",
+                subtitle_reports: "Download farm reports and sync data services.",
                 hero_eyebrow: "NuroAgro control center",
                 hero_title: "One view for crop health, climate, and farm automation.",
                 hero_copy: "Monitor the latest conditions, review AI guidance, and act on the most important changes across your farm.",
@@ -2568,6 +3313,8 @@
                 metric_scans_sub: "Stored analyses",
                 metric_account: "Account",
                 dashboard_fit: "Farm-fit analysis",
+                vertical_farming_fit: "Vertical farming fit",
+                traditional_farming_fit: "Traditional farming fit",
                 recommended_plants: "Recommended plants",
                 suitable_systems: "Suitable systems",
                 aquaponic_fish: "Aquaponic fish",
@@ -2576,6 +3323,20 @@
                 weather_intelligence: "Location weather intelligence",
                 weather_realtime_title: "Realtime conditions and model prediction",
                 weather_realtime_copy: "Current weather is location-based; daily snapshots and predictions are archived automatically.",
+                supabase_configured: "Supabase configured",
+                humidity: "Humidity",
+                feels_like: "Feels like",
+                wind: "Wind",
+                pressure: "Pressure",
+                transformer_prediction: "Transformer next-day prediction",
+                prediction_unavailable: "Prediction unavailable",
+                maximum: "Maximum",
+                minimum: "Minimum",
+                average: "Average",
+                rainfall: "Rainfall",
+                generated: "Generated",
+                next_refresh: "Next refresh",
+                day: "Day",
                 daily_forecast: "Daily location forecast",
                 seasonal_eyebrow: "75-day crop and floor analysis",
                 seasonal_title: "Location planting plan",
@@ -2588,14 +3349,38 @@
                 farm_area: "Farm area (sq ft)",
                 farm_goal: "Farm goal",
                 vertical_floors: "Vertical floors",
+                latitude: "Latitude",
+                longitude: "Longitude",
+                waiting_location: "Waiting for location permission.",
+                geolocation_unsupported: "Geolocation is not supported by this browser.",
+                detecting_location: "Detecting location...",
+                location_captured: "Location captured with about {accuracy} m accuracy.",
+                location_required: "Location permission is required: {message}",
+                project: "Project",
+                area: "Area",
+                goal: "Goal",
+                floors: "Floors",
+                location: "Location",
                 detect_location: "Detect location",
                 analyze_save: "Analyze and save",
                 project_history: "Project history",
                 your_projects: "Your farm projects",
                 telemetry: "ESP-WROOM-32 telemetry",
                 live_sensors: "Live sensor readings",
+                latest_packet: "Latest packet",
+                connected: "Connected",
+                ideal: "Ideal",
                 automation: "Automation",
                 device_controls: "Device controls",
+                device: "Device",
+                mode: "Mode",
+                ai_action: "AI action",
+                manual_setting: "Manual setting",
+                time: "Time",
+                air_temperature: "Air temperature",
+                soil: "Soil",
+                water: "Water",
+                motion: "Motion",
                 two_hour_intelligence: "Two-hour intelligence",
                 sensor_feedback: "Sensor feedback",
                 immediate_alerts: "Immediate alerts",
@@ -2614,6 +3399,10 @@
                 history_eyebrow: "Complete farm archive",
                 history_title: "History",
                 history_subtitle: "Review projects, disease images, sensors, weather, analyses, and account activity.",
+                date_from: "From date",
+                date_to: "To date",
+                clear_dates: "Clear dates",
+                history_results: "{count} records shown",
                 filter_all: "All",
                 filter_disease: "Disease",
                 filter_sensors: "Sensors",
@@ -2654,6 +3443,11 @@
                 nav_disease_short: "রোগ",
                 nav_history: "ইতিহাস",
                 logout: "লগআউট",
+                farm_intelligence: "স্মার্ট কৃষি ব্যবস্থাপনা",
+                search_placeholder: "প্রজেক্ট, সেন্সর, রোগ ও ইতিহাস খুঁজুন",
+                search_no_results: "কোনো মিল পাওয়া যায়নি",
+                footer_copy: "প্রচলিত ও ভার্টিক্যাল খামারের জন্য বুদ্ধিমান কৃষি পরিচালনা।",
+                footer_rights: "সর্বস্বত্ব সংরক্ষিত।",
                 page_dashboard: "ড্যাশবোর্ড",
                 subtitle_dashboard: "খামারের অবস্থা, পরামর্শ এবং আবহাওয়ার পূর্বাভাস।",
                 page_project: "প্রজেক্ট সেটআপ",
@@ -2681,6 +3475,8 @@
                 metric_scans_sub: "সংরক্ষিত বিশ্লেষণ",
                 metric_account: "অ্যাকাউন্ট",
                 dashboard_fit: "খামার উপযোগিতা বিশ্লেষণ",
+                vertical_farming_fit: "ভার্টিক্যাল চাষের উপযোগিতা",
+                traditional_farming_fit: "প্রচলিত চাষের উপযোগিতা",
                 recommended_plants: "প্রস্তাবিত ফসল",
                 suitable_systems: "উপযুক্ত পদ্ধতি",
                 aquaponic_fish: "অ্যাকুয়াপনিক মাছ",
@@ -2689,6 +3485,20 @@
                 weather_intelligence: "অবস্থানভিত্তিক আবহাওয়া",
                 weather_realtime_title: "রিয়েলটাইম অবস্থা ও মডেল পূর্বাভাস",
                 weather_realtime_copy: "বর্তমান আবহাওয়া অবস্থানভিত্তিক; দৈনিক তথ্য ও পূর্বাভাস স্বয়ংক্রিয়ভাবে সংরক্ষিত হয়।",
+                supabase_configured: "সুপাবেস সংযুক্ত",
+                humidity: "আর্দ্রতা",
+                feels_like: "অনুভূত তাপমাত্রা",
+                wind: "বাতাস",
+                pressure: "বায়ুচাপ",
+                transformer_prediction: "ট্রান্সফরমারের পরবর্তী দিনের পূর্বাভাস",
+                prediction_unavailable: "পূর্বাভাস পাওয়া যায়নি",
+                maximum: "সর্বোচ্চ",
+                minimum: "সর্বনিম্ন",
+                average: "গড়",
+                rainfall: "বৃষ্টিপাত",
+                generated: "তৈরি হয়েছে",
+                next_refresh: "পরবর্তী হালনাগাদ",
+                day: "দিন",
                 daily_forecast: "দৈনিক স্থানীয় পূর্বাভাস",
                 seasonal_eyebrow: "৭৫ দিনের ফসল ও ফ্লোর বিশ্লেষণ",
                 seasonal_title: "অবস্থানভিত্তিক চাষ পরিকল্পনা",
@@ -2701,14 +3511,38 @@
                 farm_area: "খামারের এলাকা (বর্গফুট)",
                 farm_goal: "খামারের লক্ষ্য",
                 vertical_floors: "ভার্টিক্যাল ফ্লোর",
+                latitude: "অক্ষাংশ",
+                longitude: "দ্রাঘিমাংশ",
+                waiting_location: "অবস্থানের অনুমতির অপেক্ষায়।",
+                geolocation_unsupported: "এই ব্রাউজারে অবস্থান শনাক্তকরণ সমর্থিত নয়।",
+                detecting_location: "অবস্থান শনাক্ত করা হচ্ছে...",
+                location_captured: "প্রায় {accuracy} মিটার নির্ভুলতায় অবস্থান নেওয়া হয়েছে।",
+                location_required: "অবস্থানের অনুমতি প্রয়োজন: {message}",
+                project: "প্রজেক্ট",
+                area: "এলাকা",
+                goal: "লক্ষ্য",
+                floors: "ফ্লোর",
+                location: "অবস্থান",
                 detect_location: "অবস্থান শনাক্ত করুন",
                 analyze_save: "বিশ্লেষণ ও সংরক্ষণ",
                 project_history: "প্রজেক্টের ইতিহাস",
                 your_projects: "আপনার কৃষি প্রজেক্ট",
                 telemetry: "ESP-WROOM-32 টেলিমেট্রি",
                 live_sensors: "লাইভ সেন্সর রিডিং",
+                latest_packet: "সর্বশেষ প্যাকেট",
+                connected: "সংযুক্ত",
+                ideal: "আদর্শ",
                 automation: "অটোমেশন",
                 device_controls: "ডিভাইস নিয়ন্ত্রণ",
+                device: "ডিভাইস",
+                mode: "মোড",
+                ai_action: "এআই নির্দেশনা",
+                manual_setting: "ম্যানুয়াল সেটিং",
+                time: "সময়",
+                air_temperature: "বায়ুর তাপমাত্রা",
+                soil: "মাটি",
+                water: "পানি",
+                motion: "চলাচল",
                 two_hour_intelligence: "দুই ঘণ্টার বুদ্ধিমত্তা",
                 sensor_feedback: "সেন্সর ফিডব্যাক",
                 immediate_alerts: "তাৎক্ষণিক সতর্কতা",
@@ -2727,6 +3561,10 @@
                 history_eyebrow: "সম্পূর্ণ খামার আর্কাইভ",
                 history_title: "ইতিহাস",
                 history_subtitle: "প্রজেক্ট, রোগের ছবি, সেন্সর, আবহাওয়া, বিশ্লেষণ এবং অ্যাকাউন্ট কার্যক্রম দেখুন।",
+                date_from: "শুরুর তারিখ",
+                date_to: "শেষ তারিখ",
+                clear_dates: "তারিখ মুছুন",
+                history_results: "{count}টি রেকর্ড দেখানো হচ্ছে",
                 filter_all: "সব",
                 filter_disease: "রোগ",
                 filter_sensors: "সেন্সর",
@@ -2765,7 +3603,9 @@
             project: { titleKey: "page_project", subtitleKey: "subtitle_project" },
             sensors: { titleKey: "page_sensors", subtitleKey: "subtitle_sensors" },
             disease: { titleKey: "page_disease", subtitleKey: "subtitle_disease" },
-            history: { titleKey: "page_history", subtitleKey: "subtitle_history" }
+            history: { titleKey: "page_history", subtitleKey: "subtitle_history" },
+            models: { titleKey: "page_models", subtitleKey: "subtitle_models" },
+            reports: { titleKey: "page_reports", subtitleKey: "subtitle_reports" }
         };
 
         const pageTitle = document.getElementById("page-title");
@@ -2773,6 +3613,17 @@
         const pageSections = document.querySelectorAll("[data-page]");
         const navigationButtons = document.querySelectorAll("[data-page-target]");
         const languageButtons = document.querySelectorAll("[data-language]");
+        const globalSearchInput = document.getElementById("global-search-input");
+        const globalSearchResults = document.getElementById("global-search-results");
+        const historyFromInput = document.getElementById("history-from");
+        const historyToInput = document.getElementById("history-to");
+        const historyClearDates = document.getElementById("history-clear-dates");
+        const historyResultCount = document.getElementById("history-result-count");
+        const csrfToken = "{{ csrf_token }}";
+        const trendData = {{ trend_data|tojson }};
+        let activeHistoryFilter = "all";
+        let searchIndex = [];
+
         function readStoredLanguage() {
             try {
                 return window.localStorage.getItem("nuroagro-language") || "en";
@@ -2806,6 +3657,18 @@
                     element.textContent = translated;
                 }
             });
+            document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+                const translated = translate(element.dataset.i18nPlaceholder);
+                if (translated) {
+                    element.placeholder = translated;
+                }
+            });
+            document.querySelectorAll("[data-i18n-label]").forEach((element) => {
+                const translated = translate(element.dataset.i18nLabel);
+                if (translated) {
+                    element.dataset.label = translated;
+                }
+            });
             languageButtons.forEach((button) => {
                 button.classList.toggle("active", button.dataset.language === currentLanguage);
             });
@@ -2813,6 +3676,9 @@
             const metadata = pageMetadata[activePage] || pageMetadata.dashboard;
             if (pageTitle) pageTitle.textContent = translate(metadata.titleKey);
             if (pageSubtitle) pageSubtitle.textContent = translate(metadata.subtitleKey);
+            buildSearchIndex();
+            renderSearchResults();
+            applyHistoryFilters();
         }
 
         function showPage(pageName, updateHash = true) {
@@ -2843,19 +3709,269 @@
             button.addEventListener("click", () => applyLanguage(button.dataset.language));
         });
 
+        function buildSearchIndex() {
+            const candidates = document.querySelectorAll(
+                ".app-page .panel, .app-page .metric, .app-page .sensor-card, .app-page .history-record"
+            );
+            searchIndex = Array.from(candidates).map((element, index) => {
+                if (!element.id) {
+                    element.id = `search-target-${index}`;
+                }
+                const page = element.closest("[data-page]")?.dataset.page || "dashboard";
+                const heading = element.querySelector("h3, h4, .metric-label, .sensor-label, strong");
+                const title = heading?.textContent.trim() || translate(pageMetadata[page]?.titleKey || "page_dashboard");
+                const text = element.textContent.replace(/\s+/g, " ").trim();
+                return {
+                    element,
+                    id: element.id,
+                    page,
+                    title,
+                    text,
+                    normalized: text.toLocaleLowerCase()
+                };
+            });
+        }
+
+        function closeSearchResults() {
+            if (globalSearchResults) {
+                globalSearchResults.hidden = true;
+            }
+        }
+
+        function renderSearchResults() {
+            if (!globalSearchInput || !globalSearchResults) return;
+            const query = globalSearchInput.value.trim().toLocaleLowerCase();
+            globalSearchResults.replaceChildren();
+            if (query.length < 2) {
+                closeSearchResults();
+                return;
+            }
+
+            const matches = searchIndex
+                .filter((item) => item.normalized.includes(query))
+                .slice(0, 9);
+
+            if (!matches.length) {
+                const empty = document.createElement("div");
+                empty.className = "search-result";
+                empty.textContent = translate("search_no_results");
+                globalSearchResults.appendChild(empty);
+            } else {
+                matches.forEach((item) => {
+                    const button = document.createElement("button");
+                    const title = document.createElement("strong");
+                    const page = document.createElement("span");
+                    button.className = "search-result";
+                    button.type = "button";
+                    button.dataset.searchTarget = item.id;
+                    button.dataset.searchPage = item.page;
+                    title.textContent = item.title;
+                    page.textContent = translate(pageMetadata[item.page]?.titleKey || "page_dashboard");
+                    button.append(title, page);
+                    globalSearchResults.appendChild(button);
+                });
+            }
+            globalSearchResults.hidden = false;
+        }
+
+        if (globalSearchInput && globalSearchResults) {
+            globalSearchInput.addEventListener("input", renderSearchResults);
+            globalSearchInput.addEventListener("focus", renderSearchResults);
+            globalSearchResults.addEventListener("click", (event) => {
+                const result = event.target.closest("[data-search-target]");
+                if (!result) return;
+                showPage(result.dataset.searchPage);
+                closeSearchResults();
+                globalSearchInput.value = "";
+                requestAnimationFrame(() => {
+                    const target = document.getElementById(result.dataset.searchTarget);
+                    if (!target) return;
+                    target.scrollIntoView({ behavior: "smooth", block: "center" });
+                    target.classList.add("search-target-active");
+                    window.setTimeout(() => target.classList.remove("search-target-active"), 1600);
+                });
+            });
+            document.addEventListener("click", (event) => {
+                if (!event.target.closest(".global-search")) {
+                    closeSearchResults();
+                }
+            });
+            document.addEventListener("keydown", (event) => {
+                const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+                if (event.key === "/" && !typing) {
+                    event.preventDefault();
+                    globalSearchInput.focus();
+                }
+                if (event.key === "Escape") {
+                    closeSearchResults();
+                    globalSearchInput.blur();
+                }
+            });
+        }
+
+        function applyHistoryFilters() {
+            const fromDate = historyFromInput?.value || "";
+            const toDate = historyToInput?.value || "";
+            let visibleCount = 0;
+
+            document.querySelectorAll("[data-history-category]").forEach((group) => {
+                group.hidden = activeHistoryFilter !== "all"
+                    && group.dataset.historyCategory !== activeHistoryFilter;
+            });
+
+            document.querySelectorAll(".history-record").forEach((record) => {
+                const recordDate = record.dataset.historyDate || "";
+                const matchesFrom = !fromDate || !recordDate || recordDate >= fromDate;
+                const matchesTo = !toDate || !recordDate || recordDate <= toDate;
+                const categoryVisible = !record.closest("[data-history-category]")?.hidden;
+                record.hidden = !(matchesFrom && matchesTo);
+                if (categoryVisible && !record.hidden) {
+                    visibleCount += 1;
+                }
+            });
+
+            if (historyResultCount) {
+                historyResultCount.textContent = translate("history_results").replace("{count}", visibleCount);
+            }
+        }
+
         document.querySelectorAll("[data-history-filter]").forEach((button) => {
             button.addEventListener("click", () => {
-                const filter = button.dataset.historyFilter;
+                activeHistoryFilter = button.dataset.historyFilter;
                 document.querySelectorAll("[data-history-filter]").forEach((item) => {
                     item.classList.toggle("active", item === button);
                 });
-                document.querySelectorAll("[data-history-category]").forEach((group) => {
-                    group.hidden = filter !== "all" && group.dataset.historyCategory !== filter;
-                });
+                applyHistoryFilters();
             });
         });
 
+        [historyFromInput, historyToInput].forEach((input) => {
+            input?.addEventListener("change", () => {
+                if (historyFromInput && historyToInput) {
+                    historyFromInput.max = historyToInput.value || "";
+                    historyToInput.min = historyFromInput.value || "";
+                }
+                applyHistoryFilters();
+            });
+        });
+
+        historyClearDates?.addEventListener("click", () => {
+            historyFromInput.value = "";
+            historyToInput.value = "";
+            historyFromInput.removeAttribute("max");
+            historyToInput.removeAttribute("min");
+            applyHistoryFilters();
+        });
+
+        function drawMiniChart(canvas, points) {
+            if (!canvas || !points?.length) return;
+            const context = canvas.getContext("2d");
+            const ratio = window.devicePixelRatio || 1;
+            const width = canvas.clientWidth || 260;
+            const height = canvas.clientHeight || 110;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            context.scale(ratio, ratio);
+            context.clearRect(0, 0, width, height);
+            const values = points.map((point) => Number(point.value) || 0);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const range = max - min || 1;
+            context.strokeStyle = "#dce3ec";
+            context.lineWidth = 1;
+            for (let index = 0; index < 4; index += 1) {
+                const y = 10 + ((height - 24) / 3) * index;
+                context.beginPath();
+                context.moveTo(0, y);
+                context.lineTo(width, y);
+                context.stroke();
+            }
+            context.strokeStyle = "#176b87";
+            context.lineWidth = 2;
+            context.beginPath();
+            values.forEach((value, index) => {
+                const x = values.length === 1 ? width - 12 : 8 + ((width - 16) * index) / (values.length - 1);
+                const y = height - 14 - ((value - min) / range) * (height - 28);
+                if (index === 0) context.moveTo(x, y);
+                else context.lineTo(x, y);
+            });
+            context.stroke();
+            context.fillStyle = "#172238";
+            context.font = "11px Arial";
+            context.fillText(`${values.at(-1) ?? 0}`, 8, 14);
+        }
+
+        function renderCharts() {
+            document.querySelectorAll("[data-chart-key]").forEach((canvas) => {
+                drawMiniChart(canvas, trendData[canvas.dataset.chartKey] || []);
+            });
+        }
+
+        renderCharts();
+        window.addEventListener("resize", renderCharts);
+
+        function updateLiveSensor(payload) {
+            if (!payload?.latest_sensor) return;
+            const reading = payload.latest_sensor;
+            document.querySelectorAll(".sensor-card").forEach((card) => {
+                const label = card.querySelector(".sensor-label")?.textContent.toLowerCase() || "";
+                const value = card.querySelector("strong");
+                if (!value) return;
+                if (label.includes("air temp")) value.textContent = `${reading.dht11_temp} C`;
+                if (label.includes("humidity")) value.textContent = `${reading.dht11_humidity} %`;
+                if (label.includes("soil")) value.textContent = `${reading.soil_moisture} %`;
+                if (label.includes("water")) value.textContent = `${reading.water_level} %`;
+                if (label.includes("lux")) value.textContent = `${reading.lux} lux`;
+            });
+        }
+
+        if (window.EventSource) {
+            const sensorStream = new EventSource("{{ url_for('api_sensor_stream') }}");
+            sensorStream.onmessage = (event) => {
+                try {
+                    updateLiveSensor(JSON.parse(event.data));
+                } catch (error) {
+                    console.warn("Live sensor update failed", error);
+                }
+            };
+        }
+
+        document.getElementById("mark-notifications-read")?.addEventListener("click", async () => {
+            await fetch("{{ url_for('api_notifications_read') }}", {
+                method: "POST",
+                headers: { "X-CSRF-Token": csrfToken }
+            });
+        });
+
+        document.querySelectorAll(".model-select").forEach((button) => {
+            button.addEventListener("click", async () => {
+                await fetch("{{ url_for('api_models_select') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken
+                    },
+                    body: JSON.stringify({ model_id: button.dataset.modelId })
+                });
+                button.textContent = "Selected";
+            });
+        });
+
+        document.getElementById("supabase-sync")?.addEventListener("click", async () => {
+            const resultBox = document.getElementById("supabase-sync-result");
+            const response = await fetch("{{ url_for('api_supabase_sync') }}", {
+                method: "POST",
+                headers: { "X-CSRF-Token": csrfToken }
+            });
+            const payload = await response.json();
+            resultBox.hidden = false;
+            resultBox.textContent = payload.result
+                ? `Synced ${payload.result.synced} rows, ${payload.result.failed} failed.`
+                : "Sync request completed.";
+        });
+
         const initialPage = {% if disease_result %}"disease"{% elif setup_result %}"project"{% else %}(location.hash || "#dashboard").slice(1){% endif %};
+        buildSearchIndex();
         applyLanguage(currentLanguage);
         showPage(initialPage, false);
 
@@ -2866,19 +3982,21 @@
 
         function detectLocation() {
             if (!navigator.geolocation) {
-                locationStatus.textContent = "Geolocation is not supported by this browser.";
+                locationStatus.textContent = translate("geolocation_unsupported");
                 return;
             }
 
-            locationStatus.textContent = "Detecting location...";
+            locationStatus.textContent = translate("detecting_location");
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     latitudeInput.value = position.coords.latitude.toFixed(6);
                     longitudeInput.value = position.coords.longitude.toFixed(6);
-                    locationStatus.textContent = `Location captured with about ${Math.round(position.coords.accuracy)} m accuracy.`;
+                    locationStatus.textContent = translate("location_captured")
+                        .replace("{accuracy}", Math.round(position.coords.accuracy));
                 },
                 (error) => {
-                    locationStatus.textContent = `Location permission is required: ${error.message}`;
+                    locationStatus.textContent = translate("location_required")
+                        .replace("{message}", error.message);
                 },
                 { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
             );

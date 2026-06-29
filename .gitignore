@@ -171,5 +171,15 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# NuroAgro runtime and local tooling
+.matplotlib/
+.venv/.nuroagro-ready
+flask-live.log
+flask.out
+flask.err
+start-test.out
+start-test.err
+npm-debug.log*
+
 # PyPI configuration file
 .pypirc

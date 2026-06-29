@@ -1,0 +1,15 @@
+{
+  "name": "nuroagro",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NuroAgro smart agriculture and vertical farming platform",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js --dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
