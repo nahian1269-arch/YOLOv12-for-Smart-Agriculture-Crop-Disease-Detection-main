@@ -1,0 +1,8 @@
+providers = ["node", "python"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "18"
+NIXPACKS_PYTHON_VERSION = "3.11"
+
+[phases.setup]
+nixPkgs = ["python311", "nodejs_18", "gcc", "libGL", "glib"]

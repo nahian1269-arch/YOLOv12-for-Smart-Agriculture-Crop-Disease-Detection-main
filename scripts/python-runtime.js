@@ -65,7 +65,7 @@ export function requirementsAvailable(python) {
     python,
     [
       "-c",
-      "import cv2, flask, keras, numpy, requests, sklearn, supervision, tensorflow, ultralytics, werkzeug"
+      "import cv2, flask, gunicorn, keras, numpy, requests, sklearn, supervision, tensorflow, ultralytics, werkzeug"
     ],
     { cwd: projectRoot, stdio: "ignore" }
   );

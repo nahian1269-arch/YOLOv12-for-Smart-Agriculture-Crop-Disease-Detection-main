@@ -46,8 +46,11 @@ def load_env_file(path=".env"):
 load_env_file()
 
 APP_NAME = "NuroAgro"
-UPLOAD_FOLDER = "static/uploads/"
-DATA_FOLDER = "data"
+IS_PRODUCTION = os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("FLASK_ENV") == "production" or os.getenv("NODE_ENV") == "production"
+RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "").strip()
+RUNTIME_ROOT = os.getenv("NUROAGRO_RUNTIME_DIR", RAILWAY_VOLUME_PATH).strip()
+DATA_FOLDER = os.getenv("NUROAGRO_DATA_DIR", os.path.join(RUNTIME_ROOT, "data") if RUNTIME_ROOT else "data")
+UPLOAD_FOLDER = os.getenv("NUROAGRO_UPLOAD_DIR", os.path.join(RUNTIME_ROOT, "uploads") if RUNTIME_ROOT else "static/uploads")
 LOCAL_DB_PATH = os.path.join(DATA_FOLDER, "nuroagro_state.json")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("VITE_SUPABASE_URL", "")).rstrip("/")
@@ -176,7 +179,28 @@ PLANT_DISEASE_GUIDANCE = {
 }
 
 app = Flask(__name__)
+if IS_PRODUCTION:
+    missing_production_vars = [
+        name for name in (
+            "FLASK_SECRET_KEY",
+            "NUROAGRO_ADMIN_USERNAME",
+            "NUROAGRO_ADMIN_PASSWORD",
+            "NUROAGRO_ADMIN_ACCESS_KEY",
+        )
+        if not os.getenv(name)
+    ]
+    if missing_production_vars:
+        raise RuntimeError(
+            "Missing required production environment variables: "
+            + ", ".join(missing_production_vars)
+        )
+
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "nuroagro-local-dev-secret")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(IS_PRODUCTION),
+)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
@@ -2075,6 +2099,20 @@ def favicon():
     return Response(favicon_svg, mimetype="image/svg+xml")
 
 
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return jsonify({
+        "ok": True,
+        "app": APP_NAME,
+        "production": bool(IS_PRODUCTION),
+        "models": {
+            "rice": rice_disease_model is not None,
+            "plant": plant_disease_model is not None,
+            "weather": weather_model is not None,
+        },
+    })
+
+
 @app.route("/signup", methods=["GET", "POST"])
 @state_transaction
 def signup():
@@ -2599,6 +2637,6 @@ def report_html():
 if __name__ == "__main__":
     threading.Thread(target=sensor_analysis_scheduler, daemon=True, name="sensor-analysis-scheduler").start()
     debug_mode = os.getenv("NUROAGRO_DEBUG", "0").strip().lower() in {"1", "true", "yes", "on"}
-    host = os.getenv("NUROAGRO_HOST", "127.0.0.1")
-    port = int(os.getenv("NUROAGRO_PORT", "5000"))
+    host = os.getenv("NUROAGRO_HOST", "0.0.0.0" if IS_PRODUCTION else "127.0.0.1")
+    port = int(os.getenv("PORT", os.getenv("NUROAGRO_PORT", "5000")))
     app.run(host=host, port=port, debug=debug_mode, use_reloader=False)
