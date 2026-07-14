@@ -22,6 +22,7 @@
             --amber: #b7791f;
             --red: #b83b3b;
             --shadow: 0 16px 40px rgba(22, 31, 43, 0.10);
+            --admin-sidebar-width: 280px;
         }
 
         * {
@@ -43,11 +44,21 @@
 
         .admin-shell {
             min-height: 100vh;
-            display: grid;
-            grid-template-columns: 280px minmax(0, 1fr);
+            display: block;
         }
 
         .sidebar {
+            position: fixed;
+            top: 0;
+            right: auto;
+            bottom: 0;
+            left: 0;
+            width: var(--admin-sidebar-width);
+            height: 100vh;
+            height: 100dvh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            z-index: 100;
             padding: 24px;
             background: #172235;
             color: white;
@@ -104,6 +115,10 @@
         .main {
             min-width: 0;
             padding: 24px;
+        }
+
+        .admin-shell > .main {
+            margin-left: var(--admin-sidebar-width);
         }
 
         .topbar {
@@ -354,6 +369,16 @@
             .two-col,
             .kpi-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                width: auto;
+                height: auto;
+            }
+
+            .admin-shell > .main {
+                margin-left: 0;
             }
         }
     </style>
