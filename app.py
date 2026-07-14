@@ -61,13 +61,65 @@ SUPABASE_PUBLISHABLE_KEY = os.getenv(
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_API_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_PUBLISHABLE_KEY
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_PROJECT_MODEL = os.getenv("OPENAI_PROJECT_MODEL", "gpt-5.5")
+OPENAI_PROJECT_MODEL = os.getenv("OPENAI_PROJECT_MODEL", "gpt-4.1-mini")
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 WEATHER_REFRESH_MINUTES = 15
 SEASONAL_ANALYSIS_DAYS = 75
 SENSOR_ANALYSIS_HOURS = 2
 SENSOR_ANALYSIS_MODEL = "NuroAgro Sensor Intelligence v1"
+IOT_ONLINE_SECONDS = 90
+IOT_EXPECTED_DEVICES = [
+    {
+        "id": "esp32-gateway",
+        "role": "gateway",
+        "label": "Main Gateway ESP-WROOM-32D",
+        "connection": "Application server over WiFi",
+    },
+    {
+        "id": "esp32-sensor-node",
+        "role": "sensor",
+        "label": "Sensor ESP-WROOM-32",
+        "connection": "Gateway ESP over ESP-NOW",
+    },
+    {
+        "id": "esp32-cam-node",
+        "role": "camera",
+        "label": "ESP32-CAM",
+        "connection": "Gateway heartbeat + WiFi image upload",
+    },
+]
+SUPABASE_TABLE_COLUMNS = {
+    "users": {"id", "name", "email", "phone", "status", "role", "joined", "last_login", "location", "created_at"},
+    "projects": {"id", "owner_id", "name", "area", "floors", "lat", "lng", "goal", "analysis", "weather_notes", "created_at"},
+    "sensor_readings": {
+        "id", "project_id", "timestamp", "dht11_temp", "dht11_humidity", "dht7_temp", "mq5", "mq7",
+        "mq135", "mq2", "mq3", "dht22_temp", "dht22_humidity", "lux", "ldr", "ph", "rain_drop",
+        "soil_moisture", "water_level", "motion",
+    },
+    "disease_detections": {"id", "user_id", "project_id", "timestamp", "image", "summary", "detections", "recommendations"},
+    "sensor_analyses": {
+        "id", "project_id", "generated_at", "next_analysis_at", "window_start", "window_end", "sample_count",
+        "health_score", "risk_level", "averages", "trends", "anomalies", "feedback", "model_name",
+    },
+    "weather_snapshots": {
+        "id", "user_id", "project_id", "observed_at", "weather_date", "latitude", "longitude", "timezone",
+        "current_weather", "daily_weather", "created_at",
+    },
+    "weather_predictions": {
+        "id", "user_id", "project_id", "predicted_at", "target_at", "latitude", "longitude", "model_name",
+        "prediction", "created_at",
+    },
+    "seasonal_analyses": {
+        "id", "user_id", "project_id", "generated_at", "next_analysis_at", "latitude", "longitude",
+        "preferred_plants", "floor_recommendations", "source", "report", "weather_summary",
+    },
+    "activities": {"id", "timestamp", "actor_type", "actor_id", "action", "details"},
+    "device_commands": {"id", "device", "value", "status", "created_at", "created_by", "acknowledged_at", "esp_response"},
+    "notifications": {"id", "user_id", "project_id", "level", "title", "message", "source", "read", "created_at"},
+    "iot_devices": {"id", "role", "status", "ip", "rssi", "last_seen", "extra"},
+}
+SUPABASE_NULLABLE_TIMESTAMP_COLUMNS = {"last_login", "acknowledged_at", "window_start", "window_end"}
 
 WEATHER_FEATURES = [
     ("max_temp", "Max Temperature", "C"),
@@ -84,18 +136,32 @@ WEATHER_SCALER_PATH = "scaler.pkl"
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_MAX_REQUESTS = 90
 RATE_LIMITS = {}
-CSRF_EXEMPT_ENDPOINTS = {"api_sensors", "api_status", "api_sensor_stream", "api_device_commands"}
+CSRF_EXEMPT_ENDPOINTS = {
+    "api_sensors",
+    "api_status",
+    "api_sensor_stream",
+    "api_device_commands",
+    "api_iot_heartbeat",
+    "api_iot_status",
+    "api_camera_upload",
+}
 COMMANDABLE_DEVICES = {"pump_1", "pump_2", "uv_lights", "camera", "relay"}
 COMMAND_VALUES = {"auto", "on", "off", "active"}
 
 SENSOR_DEFINITIONS = [
     {"key": "dht11_temp", "label": "DHT11 Air Temp", "unit": "C", "ideal": "20-30"},
     {"key": "dht11_humidity", "label": "DHT11 Humidity", "unit": "%", "ideal": "55-75"},
+    {"key": "dht22_temp", "label": "DHT22 Air Temp", "unit": "C", "ideal": "20-30"},
+    {"key": "dht22_humidity", "label": "DHT22 Humidity", "unit": "%", "ideal": "55-75"},
     {"key": "dht7_temp", "label": "DHT7 Root Temp", "unit": "C", "ideal": "18-26"},
+    {"key": "mq2", "label": "MQ-2 Gas/Smoke", "unit": "ppm", "ideal": "<350"},
+    {"key": "mq3", "label": "MQ-3 Alcohol/VOC", "unit": "ppm", "ideal": "<350"},
     {"key": "mq5", "label": "MQ-5 LPG/CH4", "unit": "ppm", "ideal": "<350"},
     {"key": "mq7", "label": "MQ-7 CO", "unit": "ppm", "ideal": "<80"},
     {"key": "mq135", "label": "MQ-135 Air Quality", "unit": "ppm", "ideal": "<600"},
-    {"key": "lux", "label": "TEMT6000 Light", "unit": "lux", "ideal": "800-18000"},
+    {"key": "lux", "label": "BH1750 Light", "unit": "lux", "ideal": "800-18000"},
+    {"key": "ldr", "label": "LDR Light", "unit": "%", "ideal": "40-85"},
+    {"key": "ph", "label": "pH", "unit": "", "ideal": "5.5-7.0"},
     {"key": "rain_drop", "label": "Raindrop", "unit": "%", "ideal": "0"},
     {"key": "soil_moisture", "label": "Soil Moisture", "unit": "%", "ideal": "40-65"},
     {"key": "water_level", "label": "Water Reserve", "unit": "%", "ideal": ">35"},
@@ -367,9 +433,15 @@ def default_sensor_reading(project_id="PRJ-001"):
         "dht11_humidity": 68,
         "dht7_temp": 23.1,
         "mq5": 148,
+        "mq2": 120,
+        "mq3": 90,
         "mq7": 21,
         "mq135": 412,
+        "dht22_temp": 27.1,
+        "dht22_humidity": 66,
         "lux": 9200,
+        "ldr": 58,
+        "ph": 6.4,
         "rain_drop": 0,
         "soil_moisture": 42,
         "water_level": 74,
@@ -475,6 +547,7 @@ def default_state():
         "sensor_analyses": [],
         "device_commands": [],
         "notifications": [],
+        "iot_devices": [],
         "password_reset_tokens": [],
         "model_registry": [],
     }
@@ -487,7 +560,7 @@ def load_state():
             save_state(state)
             return state
 
-        with open(LOCAL_DB_PATH, "r", encoding="utf-8") as state_file:
+        with open(LOCAL_DB_PATH, "r", encoding="utf-8-sig") as state_file:
             state = json.load(state_file)
 
         defaults = default_state()
@@ -528,6 +601,14 @@ def supabase_insert(table_name, row):
     if not SUPABASE_URL or not SUPABASE_API_KEY:
         return False
 
+    allowed_columns = SUPABASE_TABLE_COLUMNS.get(table_name)
+    if allowed_columns:
+        row = {key: value for key, value in row.items() if key in allowed_columns}
+    row = {
+        key: None if key in SUPABASE_NULLABLE_TIMESTAMP_COLUMNS and value == "" else value
+        for key, value in row.items()
+    }
+
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/{table_name}",
@@ -540,10 +621,14 @@ def supabase_insert(table_name, row):
             json=row,
             timeout=8,
         )
+        if response.status_code == 409:
+            logger.info("Supabase row already exists for %s/%s", table_name, row.get("id", "unknown"))
+            return True
         response.raise_for_status()
         return True
     except Exception as exc:
-        logger.warning("Supabase insert failed for %s: %s", table_name, exc)
+        response_text = getattr(locals().get("response", None), "text", "")
+        logger.warning("Supabase insert failed for %s: %s %s", table_name, exc, response_text[:500])
         return False
 
 
@@ -565,6 +650,7 @@ def supabase_sync_state(state):
         "activities": "activities",
         "device_commands": "device_commands",
         "notifications": "notifications",
+        "iot_devices": "iot_devices",
     }
     synced = 0
     failed = 0
@@ -767,6 +853,90 @@ def normalize_sensor_payload(payload):
     return reading
 
 
+def update_iot_device(state, device_id, role, status="online", ip_address="", rssi=None, extra=None):
+    devices = state.setdefault("iot_devices", [])
+    if isinstance(devices, dict):
+        devices = list(devices.values())
+        state["iot_devices"] = devices
+    elif not isinstance(devices, list):
+        devices = []
+        state["iot_devices"] = devices
+    device = next((item for item in devices if item.get("id") == device_id), None)
+    if not device:
+        device = {"id": device_id}
+        devices.append(device)
+    device.update({
+        "role": role or device.get("role", "unknown"),
+        "status": status,
+        "ip": ip_address or device.get("ip", ""),
+        "last_seen": now_iso(),
+    })
+    if rssi is not None:
+        device["rssi"] = rssi
+    if extra:
+        device["extra"] = extra
+    return device
+
+
+def human_duration(seconds):
+    seconds = max(0, int(seconds or 0))
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, seconds = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {seconds}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h {minutes}m"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h"
+
+
+def iot_device_statuses(state):
+    statuses = []
+    devices = state.get("iot_devices", [])
+    if isinstance(devices, dict):
+        devices = list(devices.values())
+    elif not isinstance(devices, list):
+        devices = []
+    by_id = {device.get("id"): device for device in devices if isinstance(device, dict)}
+    gateway = by_id.get("esp32-gateway", {})
+    gateway_seen = parse_iso_datetime(gateway.get("last_seen"))
+    gateway_online = bool(
+        gateway_seen
+        and datetime.now(timezone.utc) - gateway_seen.astimezone(timezone.utc) <= timedelta(seconds=IOT_ONLINE_SECONDS)
+    )
+
+    expected_ids = {device["id"] for device in IOT_EXPECTED_DEVICES}
+    display_devices = []
+    for expected in IOT_EXPECTED_DEVICES:
+        merged = dict(expected)
+        merged.update(by_id.get(expected["id"], {}))
+        display_devices.append(merged)
+    for device in devices:
+        if isinstance(device, dict) and device.get("id") not in expected_ids:
+            display_devices.append(device)
+
+    for device in display_devices:
+        last_seen = parse_iso_datetime(device.get("last_seen"))
+        online = False
+        age_seconds = None
+        if last_seen:
+            age_seconds = (datetime.now(timezone.utc) - last_seen.astimezone(timezone.utc)).total_seconds()
+            online = age_seconds <= IOT_ONLINE_SECONDS
+        item = dict(device)
+        item["online"] = online
+        item["status"] = "online" if online else "offline"
+        item["duration"] = human_duration(age_seconds) if age_seconds is not None else "never connected"
+        item["duration_label"] = f"online for {item['duration']}" if online else (
+            f"offline for {item['duration']}" if age_seconds is not None else "never connected"
+        )
+        item["gateway_connected"] = gateway_online if item.get("role") in {"sensor", "camera"} else online
+        item["gateway_status"] = "Gateway linked" if item["gateway_connected"] else "Gateway offline"
+        statuses.append(item)
+    return statuses
+
+
 def evaluate_automation(reading):
     alerts = []
     actions = {
@@ -782,6 +952,8 @@ def evaluate_automation(reading):
     lux = float(reading.get("lux", 0))
     rain = float(reading.get("rain_drop", 0))
     mq5 = float(reading.get("mq5", 0))
+    mq2 = float(reading.get("mq2", 0))
+    mq3 = float(reading.get("mq3", 0))
     mq7 = float(reading.get("mq7", 0))
     mq135 = float(reading.get("mq135", 0))
 
@@ -809,7 +981,7 @@ def evaluate_automation(reading):
         actions["pump_2"] = "off"
         alerts.append("Rain detected. Outdoor irrigation is paused.")
 
-    if mq5 > 350 or mq7 > 80 or mq135 > 600:
+    if mq2 > 350 or mq3 > 350 or mq5 > 350 or mq7 > 80 or mq135 > 600:
         actions["relay"] = "ventilate"
         alerts.append("Gas or air quality level is high. Start ventilation and inspect farm.")
 
@@ -826,11 +998,17 @@ def evaluate_automation(reading):
 SENSOR_ANALYSIS_KEYS = [
     "dht11_temp",
     "dht11_humidity",
+    "dht22_temp",
+    "dht22_humidity",
     "dht7_temp",
+    "mq2",
+    "mq3",
     "mq5",
     "mq7",
     "mq135",
     "lux",
+    "ldr",
+    "ph",
     "rain_drop",
     "soil_moisture",
     "water_level",
@@ -2028,6 +2206,7 @@ def build_context(state, user, disease_result=None, error=None, setup_result=Non
         "weather_error": weather_error,
         "sensor_cards": sensor_cards(reading),
         "latest_sensor": reading,
+        "iot_devices": iot_device_statuses(state),
         "automation": automation,
         "alerts": alerts,
         "notifications": list(reversed(notifications[-8:])),
@@ -2474,6 +2653,14 @@ def api_sensors():
     state = load_state()
     payload = request.get_json(silent=True) or request.form.to_dict()
     reading = normalize_sensor_payload(payload)
+    update_iot_device(
+        state,
+        payload.get("device_id", "esp32-sensor-node"),
+        payload.get("role", "sensor"),
+        ip_address=request.remote_addr or "",
+        rssi=payload.get("rssi"),
+        extra={"project_id": reading.get("project_id", "")},
+    )
     actions, alerts = evaluate_automation(reading)
     state.setdefault("sensor_history", []).append(reading)
     sensor_analysis = get_or_create_sensor_analysis(state, reading.get("project_id", ""))
@@ -2507,6 +2694,42 @@ def api_status():
     })
 
 
+@app.route("/api/iot/heartbeat", methods=["POST"])
+@state_transaction
+def api_iot_heartbeat():
+    state = load_state()
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    device = update_iot_device(
+        state,
+        payload.get("device_id", "esp32-gateway"),
+        payload.get("role", "gateway"),
+        ip_address=request.remote_addr or payload.get("ip", ""),
+        rssi=payload.get("rssi"),
+        extra={
+            key: value
+            for key, value in payload.items()
+            if key not in {"device_id", "role", "ip", "rssi"}
+        },
+    )
+    save_state(state)
+    return jsonify({"ok": True, "device": device, "devices": iot_device_statuses(state)})
+
+
+@app.route("/api/iot/status", methods=["GET"])
+@state_transaction
+def api_iot_status():
+    state = load_state()
+    return jsonify({
+        "ok": True,
+        "devices": iot_device_statuses(state),
+        "latest_sensor": latest_sensor(state),
+        "pending_commands": [
+            command for command in state.get("device_commands", [])
+            if command.get("status") == "queued"
+        ],
+    })
+
+
 @app.route("/api/sensors/stream", methods=["GET"])
 def api_sensor_stream():
     def event_stream():
@@ -2527,6 +2750,56 @@ def api_sensor_stream():
             time.sleep(4)
 
     return Response(event_stream(), mimetype="text/event-stream")
+
+
+@app.route("/api/camera/upload", methods=["POST"])
+@state_transaction
+def api_camera_upload():
+    state = load_state()
+    payload = request.form.to_dict()
+    image_file = request.files.get("image")
+    if not image_file:
+        return jsonify({"ok": False, "error": "Missing multipart image field."}), 400
+
+    filename = secure_filename(image_file.filename or f"esp32cam-{int(time.time())}.jpg")
+    if not allowed_file(filename):
+        filename = f"{os.path.splitext(filename)[0] or 'esp32cam'}.jpg"
+    filename = f"esp32cam-{uuid.uuid4().hex[:10]}-{filename}"
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    image_file.save(filepath)
+
+    output_path, processing_error, disease_counts, disease_recommendations, detection_records = process_image(filepath)
+    if processing_error:
+        return jsonify({"ok": False, "error": processing_error}), 500
+
+    user_id = payload.get("user_id") or session.get("user_id") or "iot-camera"
+    project_id = payload.get("project_id", "")
+    if not project_id:
+        project_id = next((project.get("id") for project in reversed(state.get("projects", []))), "")
+
+    record = {
+        "id": f"DIS-{uuid.uuid4().hex[:8].upper()}",
+        "timestamp": now_iso(),
+        "project_id": project_id,
+        "image": url_for("static", filename=output_path),
+        "summary": disease_counts,
+        "detections": detection_records,
+        "recommendations": disease_recommendations,
+        "user_id": user_id,
+    }
+    state.setdefault("disease_history", []).append(record)
+    update_iot_device(
+        state,
+        payload.get("device_id", "esp32-cam-node"),
+        payload.get("role", "camera"),
+        ip_address=request.remote_addr or "",
+        rssi=payload.get("rssi"),
+        extra={"project_id": project_id, "detections": len(detection_records)},
+    )
+    record_activity(state, "iot", record["user_id"], "camera_scan", filename)
+    save_state(state)
+    supabase_insert("disease_detections", record)
+    return jsonify({"ok": True, "record": record})
 
 
 @app.route("/api/device-commands", methods=["GET", "POST"])

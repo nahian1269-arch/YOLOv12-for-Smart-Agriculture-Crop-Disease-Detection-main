@@ -47,7 +47,7 @@ try {
       NODE_ENV: production ? "production" : (process.env.NODE_ENV || "development"),
       PYTHONUNBUFFERED: "1",
       NUROAGRO_DEBUG: development ? "1" : "0",
-      NUROAGRO_HOST: production ? "0.0.0.0" : (process.env.NUROAGRO_HOST || "127.0.0.1"),
+      NUROAGRO_HOST: production ? "0.0.0.0" : (process.env.NUROAGRO_HOST || "0.0.0.0"),
       MPLCONFIGDIR: join(projectRoot, ".matplotlib")
     }
   });

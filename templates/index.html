@@ -2621,6 +2621,54 @@
                     </div>
                 </article>
 
+                <article class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">IoT network</span>
+                            <h3>ESP connection status</h3>
+                            <p>Main gateway, ESP32-CAM, and sensor ESP heartbeat monitor.</p>
+                        </div>
+                        <span class="status {% if iot_devices and iot_devices|selectattr('online')|list|length == iot_devices|length %}stable{% else %}watch{% endif %}" id="iot-overall-status">
+                            {% if iot_devices %}{{ iot_devices|selectattr('online')|list|length }}/{{ iot_devices|length }} online{% else %}Waiting{% endif %}
+                        </span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ESP board</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Connected through</th>
+                                    <th>RSSI</th>
+                                    <th>Last seen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="iot-device-table">
+                                {% for device in iot_devices %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ device.label or device.id }}</strong>
+                                            <small style="display:block;color:var(--muted);">{{ device.id }}</small>
+                                        </td>
+                                        <td>{{ device.role|title }}</td>
+                                        <td><span class="status {{ 'stable' if device.online else 'alert' }}">{{ 'Online' if device.online else 'Offline' }}</span></td>
+                                        <td>{{ device.duration_label }}</td>
+                                        <td>{{ device.connection or device.gateway_status }}</td>
+                                        <td>{{ device.rssi if device.rssi is defined else '--' }}</td>
+                                        <td>{{ device.last_seen or '--' }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7">No ESP heartbeat yet. Power the gateway and open Serial Monitor.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
                 <div class="grid two-column">
                     <article class="panel">
                         <div class="panel-header">
@@ -3935,6 +3983,49 @@
                 }
             };
         }
+
+        const iotDeviceTable = document.getElementById("iot-device-table");
+        const iotOverallStatus = document.getElementById("iot-overall-status");
+
+        function renderIotDevices(devices = []) {
+            if (!iotDeviceTable || !iotOverallStatus) return;
+            const onlineCount = devices.filter((device) => device.online).length;
+            iotOverallStatus.textContent = devices.length ? `${onlineCount}/${devices.length} online` : "Waiting";
+            iotOverallStatus.className = `status ${devices.length && onlineCount === devices.length ? "stable" : "watch"}`;
+
+            if (!devices.length) {
+                iotDeviceTable.innerHTML = '<tr><td colspan="7">No ESP heartbeat yet. Power the gateway and open Serial Monitor.</td></tr>';
+                return;
+            }
+
+            iotDeviceTable.innerHTML = devices.map((device) => `
+                <tr>
+                    <td>
+                        <strong>${device.label || device.id || "--"}</strong>
+                        <small style="display:block;color:var(--muted);">${device.id || "--"}</small>
+                    </td>
+                    <td>${device.role || "--"}</td>
+                    <td><span class="status ${device.online ? "stable" : "alert"}">${device.online ? "Online" : "Offline"}</span></td>
+                    <td>${device.duration_label || "--"}</td>
+                    <td>${device.connection || device.gateway_status || "--"}</td>
+                    <td>${device.rssi ?? "--"}</td>
+                    <td>${device.last_seen || "--"}</td>
+                </tr>
+            `).join("");
+        }
+
+        async function refreshIotStatus() {
+            try {
+                const response = await fetch("{{ url_for('api_iot_status') }}");
+                const payload = await response.json();
+                renderIotDevices(payload.devices || []);
+            } catch (error) {
+                console.warn("IoT status refresh failed", error);
+            }
+        }
+
+        refreshIotStatus();
+        window.setInterval(refreshIotStatus, 10000);
 
         document.getElementById("mark-notifications-read")?.addEventListener("click", async () => {
             await fetch("{{ url_for('api_notifications_read') }}", {
