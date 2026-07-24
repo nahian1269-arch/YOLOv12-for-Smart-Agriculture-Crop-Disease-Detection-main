@@ -341,6 +341,41 @@
             background: var(--primary);
             color: white;
         }
+        .voice-summary {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 6px 18px rgba(26, 43, 72, 0.06);
+        }
+
+        .voice-summary:hover,
+        .voice-summary:focus-visible,
+        .voice-summary.active {
+            border-color: rgba(38, 153, 140, 0.55);
+            background: #edf7f1;
+            color: var(--primary-strong);
+        }
+
+        .voice-summary svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .voice-summary-status {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
 
         .topbar h2 {
             margin: 0;
@@ -461,6 +496,28 @@
             color: #d7e8e6;
             font-size: 14px;
             line-height: 1.6;
+        }
+        .hero-voice-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .voice-summary.hero-voice {
+            width: auto;
+            min-width: 174px;
+            gap: 8px;
+            padding: 0 14px;
+            border-color: rgba(255, 255, 255, 0.25);
+            background: #ffffff;
+            color: var(--primary-strong);
+            font-size: 13px;
+            font-weight: 850;
+        }
+
+        .voice-summary.hero-voice .voice-summary-label {
+            display: inline;
         }
 
         .hero-status {
@@ -2118,6 +2175,10 @@
                         <button class="language-button active" type="button" data-language="en">EN</button>
                         <button class="language-button" type="button" data-language="bn">à¦¬à¦¾à¦‚à¦²à¦¾</button>
                     </div>
+                    <button class="voice-summary" type="button" data-farm-voice-summary title="Speak farm summary in Bangla" aria-label="Speak farm summary in Bangla">
+                        <i data-lucide="volume-2"></i>
+                    </button>
+                    <span class="voice-summary-status" id="farm-voice-status" aria-live="polite"></span>
                     <div class="project-badge">{{ current_project.name }}</div>
                 </div>
             </header>
@@ -2128,6 +2189,12 @@
                         <span data-i18n="hero_eyebrow">NuroAgro control center</span>
                         <h3 data-i18n="hero_title">One view for crop health, climate, and farm automation.</h3>
                         <p data-i18n="hero_copy">Monitor the latest conditions, review AI guidance, and act on the most important changes across your farm.</p>
+                        <div class="hero-voice-actions">
+                            <button class="voice-summary hero-voice" type="button" data-farm-voice-summary title="Speak farm summary in Bangla" aria-label="Speak farm summary in Bangla">
+                                <i data-lucide="volume-2"></i>
+                                <span class="voice-summary-label">Voice Summary</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="hero-status">
                         <div class="hero-stat">
@@ -3675,6 +3742,22 @@
         const historyResultCount = document.getElementById("history-result-count");
         const csrfToken = "{{ csrf_token }}";
         const trendData = {{ trend_data|tojson }};
+        const farmVoiceData = {
+            project: {
+                name: {{ current_project.name|tojson }},
+                goal: {{ current_project.goal|tojson }},
+                area: {{ current_project.area|tojson }},
+                floors: {{ current_project.floors|tojson }}
+            },
+            weather: {% if realtime_weather %}{{ realtime_weather.current|tojson }}{% else %}null{% endif %},
+            nextPrediction: {% if next_day_prediction %}{{ next_day_prediction.prediction|tojson }}{% else %}null{% endif %},
+            latestSensor: {{ latest_sensor|tojson }},
+            sensorAnalysis: {% if sensor_analysis %}{{ sensor_analysis|tojson }}{% else %}null{% endif %},
+            projectAnalysis: {{ project_analysis|tojson }},
+            recommendations: {{ recommendations|tojson }},
+            unreadNotifications: {{ unread_notifications|tojson }},
+            seasonalAnalysis: {% if seasonal_analysis %}{{ seasonal_analysis|tojson }}{% else %}null{% endif %}
+        };
         let activeHistoryFilter = "all";
         let searchIndex = [];
 
@@ -3763,6 +3846,147 @@
             button.addEventListener("click", () => applyLanguage(button.dataset.language));
         });
 
+
+        const farmVoiceButtons = document.querySelectorAll("[data-farm-voice-summary]");
+        const farmVoiceStatus = document.getElementById("farm-voice-status");
+
+        function voiceLabel(key, fallback) {
+            return translations.bn?.[key] || translations.en?.[key] || fallback || key;
+        }
+
+        function voiceValue(value, fallback = "--") {
+            if (value === null || value === undefined || value === "" || value === "--") return fallback;
+            return value;
+        }
+
+        function voiceWeatherCondition(condition = "") {
+            const text = String(condition).toLowerCase();
+            if (text.includes("rain") || text.includes("drizzle")) return voiceLabel("rainfall", "Rainfall");
+            if (text.includes("storm")) return voiceLabel("immediate_alerts", "Alert");
+            if (text.includes("fog") || text.includes("mist")) return voiceLabel("weather_realtime_title", "Weather");
+            if (text.includes("clear") || text.includes("cloud") || text.includes("overcast")) return voiceLabel("weather_realtime_title", "Weather");
+            return voiceLabel("weather_realtime_title", "Weather");
+        }
+
+        function voiceFarmGoal(goal = "") {
+            const text = String(goal).toLowerCase();
+            if (text.includes("hybrid")) return `${voiceLabel("vertical_farming_fit", "Vertical farming")} ${voiceLabel("traditional_farming_fit", "Traditional farming")}`;
+            if (text.includes("vertical")) return voiceLabel("vertical_farming_fit", "Vertical farming");
+            if (text.includes("traditional")) return voiceLabel("traditional_farming_fit", "Traditional farming");
+            if (text.includes("aquaponic")) return voiceLabel("aquaponic_fish", "Aquaponic");
+            return voiceLabel("farm_goal", "Farm goal");
+        }
+
+        function buildFarmVoiceSummary() {
+            const data = farmVoiceData || {};
+            const project = data.project || {};
+            const weather = data.weather || {};
+            const sensor = data.latestSensor || {};
+            const analysis = data.sensorAnalysis || {};
+            const prediction = data.nextPrediction || {};
+            const projectAnalysis = data.projectAnalysis || {};
+            const seasonal = data.seasonalAnalysis || {};
+            const parts = [];
+            const unread = Number(data.unreadNotifications) || 0;
+
+            parts.push(`${voiceLabel("farm_intelligence", "Farm intelligence")}.`);
+            parts.push(`${voiceLabel("hero_project", "Current project")}: ${voiceValue(project.name)}.`);
+            parts.push(`${voiceLabel("goal", "Goal")}: ${voiceFarmGoal(project.goal)}.`);
+            parts.push(`${voiceLabel("area", "Area")}: ${voiceValue(project.area)} ${voiceLabel("metric_area_sub", "Square feet")}. ${voiceLabel("floors", "Floors")}: ${voiceValue(project.floors)}.`);
+
+            if (data.weather) {
+                parts.push(`${voiceLabel("weather_intelligence", "Weather")}: ${voiceWeatherCondition(weather.condition)}.`);
+                parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(weather.temperature)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(weather.humidity)}%.`);
+                parts.push(`${voiceLabel("wind", "Wind")}: ${voiceValue(weather.wind_speed)} km/h. ${voiceLabel("pressure", "Pressure")}: ${voiceValue(weather.pressure)} hPa.`);
+            } else {
+                parts.push(`${voiceLabel("weather_intelligence", "Weather")}: ${voiceLabel("prediction_unavailable", "Unavailable")}.`);
+            }
+
+            if (data.nextPrediction) {
+                parts.push(`${voiceLabel("transformer_prediction", "Prediction")}. ${voiceLabel("average", "Average")}: ${voiceValue(prediction.avg_temp)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(prediction.humidity)}%. ${voiceLabel("rainfall", "Rainfall")}: ${voiceValue(prediction.rainfall)} mm.`);
+            }
+
+            parts.push(`${voiceLabel("live_sensors", "Live sensors")}.`);
+            parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(sensor.dht11_temp)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(sensor.dht11_humidity)}%.`);
+            parts.push(`${voiceLabel("soil", "Soil")}: ${voiceValue(sensor.soil_moisture)}%. ${voiceLabel("water", "Water")}: ${voiceValue(sensor.water_level)}%. pH: ${voiceValue(sensor.ph)}. Lux: ${voiceValue(sensor.lux)}.`);
+
+            if (data.sensorAnalysis) {
+                parts.push(`${voiceLabel("two_hour_intelligence", "Two hour intelligence")}. ${voiceLabel("hero_sensor_score", "Sensor score")}: ${voiceValue(analysis.health_score)}.`);
+            }
+
+            if (seasonal.preferred_plants?.length) {
+                parts.push(`${voiceLabel("preferred_plants", "Preferred plants")}: ${seasonal.preferred_plants.slice(0, 5).join(", ")}.`);
+            } else if (projectAnalysis.plants?.length) {
+                parts.push(`${voiceLabel("recommended_plants", "Recommended plants")}: ${projectAnalysis.plants.slice(0, 5).join(", ")}.`);
+            }
+
+            parts.push(`${voiceLabel("priority_actions", "Priority actions")}: ${voiceValue(unread)} ${voiceLabel("immediate_alerts", "Alerts")}.`);
+            return parts.join(" ");
+        }
+        let farmVoiceAudio = null;
+        let farmVoiceAudioUrl = "";
+
+        function setFarmVoiceActive(active, status = "") {
+            farmVoiceButtons.forEach((button) => button.classList.toggle("active", active));
+            if (farmVoiceStatus && status) farmVoiceStatus.textContent = status;
+        }
+
+        function stopFarmVoiceSummary(status = "Voice summary stopped.") {
+            if (farmVoiceAudio) {
+                farmVoiceAudio.pause();
+                farmVoiceAudio.currentTime = 0;
+            }
+            if (farmVoiceAudioUrl) {
+                URL.revokeObjectURL(farmVoiceAudioUrl);
+                farmVoiceAudioUrl = "";
+            }
+            setFarmVoiceActive(false, status);
+        }
+
+        async function speakFarmVoiceSummary() {
+            if (farmVoiceAudio && !farmVoiceAudio.paused) {
+                stopFarmVoiceSummary("Voice summary stopped.");
+                return;
+            }
+
+            setFarmVoiceActive(true, "Generating Bangla voice summary.");
+            try {
+                const response = await fetch("{{ url_for('api_voice_summary') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken
+                    },
+                    body: JSON.stringify({ text: buildFarmVoiceSummary() })
+                });
+
+                if (!response.ok) {
+                    let message = "Bangla voice summary failed.";
+                    try {
+                        const payload = await response.json();
+                        message = payload.error || message;
+                    } catch (error) {
+                        // Keep the default message when the response is not JSON.
+                    }
+                    throw new Error(message);
+                }
+
+                const audioBlob = await response.blob();
+                if (farmVoiceAudioUrl) URL.revokeObjectURL(farmVoiceAudioUrl);
+                farmVoiceAudioUrl = URL.createObjectURL(audioBlob);
+                farmVoiceAudio = new Audio(farmVoiceAudioUrl);
+                farmVoiceAudio.onended = () => stopFarmVoiceSummary("Voice summary finished.");
+                farmVoiceAudio.onerror = () => stopFarmVoiceSummary("Voice playback failed.");
+                await farmVoiceAudio.play();
+                setFarmVoiceActive(true, "Playing Bangla voice summary.");
+            } catch (error) {
+                console.warn("Bangla voice summary failed", error);
+                stopFarmVoiceSummary(error.message || "Bangla voice summary failed.");
+                alert(error.message || "Bangla voice summary failed. Check internet connection and gTTS installation.");
+            }
+        }
+
+        farmVoiceButtons.forEach((button) => button.addEventListener("click", speakFarmVoiceSummary));
         function buildSearchIndex() {
             const candidates = document.querySelectorAll(
                 ".app-page .panel, .app-page .metric, .app-page .sensor-card, .app-page .history-record"
@@ -3967,6 +4191,7 @@
         function updateLiveSensor(payload) {
             if (!payload?.latest_sensor) return;
             const reading = payload.latest_sensor;
+            farmVoiceData.latestSensor = reading;
             document.querySelectorAll(".sensor-card").forEach((card) => {
                 const label = card.querySelector(".sensor-label")?.textContent.toLowerCase() || "";
                 const value = card.querySelector("strong");

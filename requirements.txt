@@ -9,3 +9,4 @@ scikit-learn==1.9.0
 supervision==0.28.0
 tensorflow==2.21.0
 ultralytics==8.4.66
+gTTS==2.5.4

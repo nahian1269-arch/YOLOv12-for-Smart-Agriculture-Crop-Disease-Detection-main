@@ -17,6 +17,10 @@ import keras
 import numpy as np
 import requests
 import supervision as sv
+try:
+    from gtts import gTTS
+except ImportError:  # Optional locally until requirements are installed.
+    gTTS = None
 from flask import Flask, Response, jsonify, redirect, render_template, render_template_string, request, session, url_for
 from keras import layers
 from keras.saving import register_keras_serializable
@@ -2646,6 +2650,38 @@ def admin_dashboard():
 
     return render_template("admin.html", **build_admin_context(state, admin=admin, error=error, notice=notice))
 
+
+
+@app.route("/api/voice-summary", methods=["POST"])
+def api_voice_summary():
+    state = load_state()
+    if not current_user(state):
+        return jsonify({"ok": False, "error": "Login required."}), 401
+    if gTTS is None:
+        return jsonify({"ok": False, "error": "gTTS is not installed. Run pip install gTTS."}), 503
+
+    payload = request.get_json(silent=True) or {}
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        return jsonify({"ok": False, "error": "Voice summary text is required."}), 400
+
+    text = text[:2500]
+    audio = io.BytesIO()
+    try:
+        gTTS(text=text, lang="bn", slow=False).write_to_fp(audio)
+    except Exception as exc:
+        logger.exception("Bangla voice summary generation failed: %s", exc)
+        return jsonify({"ok": False, "error": "Bangla voice service is unavailable."}), 502
+
+    audio.seek(0)
+    return Response(
+        audio.getvalue(),
+        mimetype="audio/mpeg",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": "inline; filename=nuroagro-bangla-summary.mp3",
+        },
+    )
 
 @app.route("/api/sensors", methods=["POST"])
 @state_transaction
