@@ -3896,18 +3896,18 @@
 
             if (data.weather) {
                 parts.push(`${voiceLabel("weather_intelligence", "Weather")}: ${voiceWeatherCondition(weather.condition)}.`);
-                parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(weather.temperature)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(weather.humidity)}%.`);
+                parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(weather.temperature)}?C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(weather.humidity)}%.`);
                 parts.push(`${voiceLabel("wind", "Wind")}: ${voiceValue(weather.wind_speed)} km/h. ${voiceLabel("pressure", "Pressure")}: ${voiceValue(weather.pressure)} hPa.`);
             } else {
                 parts.push(`${voiceLabel("weather_intelligence", "Weather")}: ${voiceLabel("prediction_unavailable", "Unavailable")}.`);
             }
 
             if (data.nextPrediction) {
-                parts.push(`${voiceLabel("transformer_prediction", "Prediction")}. ${voiceLabel("average", "Average")}: ${voiceValue(prediction.avg_temp)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(prediction.humidity)}%. ${voiceLabel("rainfall", "Rainfall")}: ${voiceValue(prediction.rainfall)} mm.`);
+                parts.push(`${voiceLabel("transformer_prediction", "Prediction")}. ${voiceLabel("average", "Average")}: ${voiceValue(prediction.avg_temp)}?C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(prediction.humidity)}%. ${voiceLabel("rainfall", "Rainfall")}: ${voiceValue(prediction.rainfall)} mm.`);
             }
 
             parts.push(`${voiceLabel("live_sensors", "Live sensors")}.`);
-            parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(sensor.dht11_temp)}°C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(sensor.dht11_humidity)}%.`);
+            parts.push(`${voiceLabel("air_temperature", "Temperature")}: ${voiceValue(sensor.dht11_temp)}?C. ${voiceLabel("humidity", "Humidity")}: ${voiceValue(sensor.dht11_humidity)}%.`);
             parts.push(`${voiceLabel("soil", "Soil")}: ${voiceValue(sensor.soil_moisture)}%. ${voiceLabel("water", "Water")}: ${voiceValue(sensor.water_level)}%. pH: ${voiceValue(sensor.ph)}. Lux: ${voiceValue(sensor.lux)}.`);
 
             if (data.sensorAnalysis) {
